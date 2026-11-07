@@ -5,8 +5,10 @@ from zoneinfo import ZoneInfo
 
 from generate_question import generate_question
 from generate_image_question import generate_image_question
+from database import assign_questions_to_batch
 
-categories = [
+
+CATEGORIES = [
     "Geografiya",
     "Tarix",
     "Biologiya",
@@ -21,16 +23,23 @@ categories = [
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch", type=int, required=True, choices=[1, 2, 3])
+    parser.add_argument(
+        "--batch",
+        type=int,
+        required=True,
+        choices=[1, 2, 3]
+    )
     args = parser.parse_args()
 
     total_saved = 0
 
     print(f"BILIMDON: {args.batch}-partiya tayyorlanmoqda...")
 
+    # 19 ta oddiy savol yaratish
     for i in range(19):
-        category = categories[i % len(categories)]
-        print(f"\nOddiy savol {i + 1}/19: {category}")
+        category = CATEGORIES[i % len(CATEGORIES)]
+
+        print(f"\nSavol {i + 1}/19: {category}")
 
         saved = False
 
@@ -48,20 +57,38 @@ def main():
 
         if not saved:
             print("Savol yaratilmadi.")
-        time.sleep(5)
 
+        if i < 18:
+            time.sleep(5)
+
+    # 1 ta rasmli savol yaratish
     print("\nRasmli savol yaratilmoqda...")
 
-    image_saved = generate_image_question("Geografiya")
-
-    if image_saved:
-        total_saved += 1
+    try:
+        if generate_image_question("Geografiya"):
+            total_saved += 1
+    except Exception as e:
+        print("Rasmli savolda xatolik:", e)
 
     print(f"\nJami saqlangan: {total_saved}/20")
 
+    # Faqat 20 ta savol tayyor bo'lsa, partiyaga biriktirish
     if total_saved == 20:
-        from create_batch import main as create_batch_main
-        print("Savollar yaratildi. Partiyani alohida tayyorlash kerak.")
+        today = datetime.now(
+            ZoneInfo("Asia/Tashkent")
+        ).strftime("%Y-%m-%d")
+
+        success = assign_questions_to_batch(
+            today,
+            args.batch
+        )
+
+        if success:
+            print("Partiya muvaffaqiyatli biriktirildi!")
+        else:
+            print("Partiyani biriktirish amalga oshmadi.")
+    else:
+        print("20 ta savol to'liq tayyor bo'lmadi.")
 
 
 if __name__ == "__main__":
