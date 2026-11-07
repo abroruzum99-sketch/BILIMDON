@@ -2,6 +2,7 @@ import os
 import asyncio
 import argparse
 from datetime import datetime
+from zoneinfo import datetime
 
 from dotenv import load_dotenv
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
@@ -147,8 +148,7 @@ def main():
         print("XATO: .env sozlamalarini tekshiring!")
         return
 
-    today = datetime.now().strftime("%Y-%m-%d")
-    questions = get_batch_questions(today, args.batch)
+    today = datetime.now(ZoneInfo("Asia/Tashkent")).strftime("%Y-%m-%d")
 
     try:
         prepare_questions(questions)
