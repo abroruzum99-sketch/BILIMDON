@@ -82,6 +82,10 @@ async def answer_callback(
             await query.answer("Savol yoki javob topilmadi!", show_alert=True)
             return
 
+        if question["batch_date"] is None:
+            await query.answer("Test savoli: javob qayd etilmadi.", show_alert=True)
+            return
+
         save_answer(
             user_id=user.id,
             first_name=user.first_name,
@@ -119,6 +123,10 @@ async def poll_answer_callback(
 
         user = answer.user
         selected_option = answer.option_ids[0]
+
+        if question["batch_date"] is None:
+            print("Test so‘rovnomasi: javob qayd etilmadi.")
+            return
 
         save_answer(
             user_id=user.id,
