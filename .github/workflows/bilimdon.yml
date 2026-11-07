@@ -31,15 +31,29 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          HOUR=$(date -u +%H)
+          SCHEDULE="${{ github.event.schedule }}"
 
-          if [ "$HOUR" = "16" ]; then
-            python send_leaderboard.py
-          else
-            BATCH=1
-            if [ "$HOUR" = "09" ]; then BATCH=2; fi
-            if [ "$HOUR" = "15" ]; then BATCH=3; fi
-
+          case "$SCHEDULE" in
+            "0 3 * * *")
+              python generate_batch.py --batch 1
+              python send_batch.py --batch 1 --send
+              ;;
+            "0 9 * * *")
+              python generate_batch.py --batch 2
+              python send_batch.py --batch 2 --send
+              ;;
+            "0 15 * * *")
+              python generate_batch.py --batch 3
+              python send_batch.py --batch 3 --send
+              ;;
+            "0 16 * * *")
+              python send_leaderboard.py
+              ;;
+            *)
+              echo "Noma'lum jadval"
+              exit 1
+              ;;
+          esac
             python generate_batch.py --batch $BATCH
             python send_batch.py --batch $BATCH --send
           fi
