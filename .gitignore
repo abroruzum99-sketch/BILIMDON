@@ -1,0 +1,7 @@
+.env
+venv/
+pycache/
+*.pyc
+bilimdon.db
+bilimdon_backup.db
+database_backup.py
