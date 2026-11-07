@@ -87,6 +87,7 @@ def main():
             print("Partiya muvaffaqiyatli biriktirildi!")
         else:
             print("Partiyani biriktirish amalga oshmadi.")
+            raise SystemExit(1)
     else:
         print("20 ta savol to'liq tayyor bo'lmadi.")
 

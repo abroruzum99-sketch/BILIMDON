@@ -31,6 +31,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
+          set -e
           SCHEDULE="${{ github.event.schedule }}"
 
           case "$SCHEDULE" in

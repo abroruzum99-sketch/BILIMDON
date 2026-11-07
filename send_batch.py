@@ -2,7 +2,7 @@ import os
 import asyncio
 import argparse
 from datetime import datetime
-from zoneinfo import datetime
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
