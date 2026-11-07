@@ -54,6 +54,3 @@ jobs:
               exit 1
               ;;
           esac
-            python generate_batch.py --batch $BATCH
-            python send_batch.py --batch $BATCH --send
-          fi
