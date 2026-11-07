@@ -158,7 +158,23 @@ def main():
     app.add_handler(PollAnswerHandler(poll_answer_callback))
 
     print("BILIMDON bot ishga tushdi!")
-    app.run_polling()
+
+    if os.getenv("RENDER"):
+        external_url = os.getenv("RENDER_EXTERNAL_URL")
+        webhook_secret = os.getenv("WEBHOOK_SECRET")
+
+        if not external_url or not webhook_secret:
+            raise RuntimeError("Render webhook sozlamalari topilmadi!")
+
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.getenv("PORT", "10000")),
+            url_path=webhook_secret,
+            webhook_url=f"{external_url}/{webhook_secret}",
+            secret_token=webhook_secret
+        )
+    else:
+        app.run_polling()
 
 
 if __name__ == "__main__":
