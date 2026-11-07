@@ -1,0 +1,45 @@
+name: BILIMDON Automation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+    - cron: "0 9 * * *"
+    - cron: "0 15 * * *"
+    - cron: "0 16 * * *"
+
+jobs:
+  run-bilimdon:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run BILIMDON
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          HOUR=$(date -u +%H)
+
+          if [ "$HOUR" = "16" ]; then
+            python send_leaderboard.py
+          else
+            BATCH=1
+            if [ "$HOUR" = "09" ]; then BATCH=2; fi
+            if [ "$HOUR" = "15" ]; then BATCH=3; fi
+
+            python generate_batch.py --batch $BATCH
+            python send_batch.py --batch $BATCH --send
+          fi
