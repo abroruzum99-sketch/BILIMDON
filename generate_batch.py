@@ -1,5 +1,10 @@
+import argparse
 import time
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from generate_question import generate_question
+from generate_image_question import generate_image_question
 
 categories = [
     "Geografiya",
@@ -13,39 +18,51 @@ categories = [
     "Umumiy bilimlar"
 ]
 
-total_saved = 0
-target = 19
 
-print("BILIMDON: 1-partiya tayyorlanmoqda...")
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--batch", type=int, required=True, choices=[1, 2, 3])
+    args = parser.parse_args()
 
-for i in range(target):
-    print(f"\nSavol {i + 1}/{target}")
+    total_saved = 0
 
-    saved = False
+    print(f"BILIMDON: {args.batch}-partiya tayyorlanmoqda...")
 
-    for attempt in range(3):
+    for i in range(19):
         category = categories[i % len(categories)]
+        print(f"\nOddiy savol {i + 1}/19: {category}")
 
-        try:
-            if generate_question(category):
-                total_saved += 1
-                saved = True
-                break
+        saved = False
 
-        except Exception as e:
-            print("Xatolik:", e)
+        for attempt in range(3):
+            try:
+                if generate_question(category):
+                    total_saved += 1
+                    saved = True
+                    break
+            except Exception as e:
+                print("Xatolik:", e)
 
-        if attempt < 2:
-            print("7 soniya kutilyapti...")
-            time.sleep(5)
+            if attempt < 2:
+                time.sleep(5)
 
-    if not saved:
-        print("Savol yaratilmadi.")
-
-    # Har bir savoldan keyin API limitini hisobga olib kutish
-    if i < target - 1:
+        if not saved:
+            print("Savol yaratilmadi.")
         time.sleep(5)
 
-print("\n========================")
-print(f"Jami saqlangan: {total_saved}/19")
-print("========================")
+    print("\nRasmli savol yaratilmoqda...")
+
+    image_saved = generate_image_question("Geografiya")
+
+    if image_saved:
+        total_saved += 1
+
+    print(f"\nJami saqlangan: {total_saved}/20")
+
+    if total_saved == 20:
+        from create_batch import main as create_batch_main
+        print("Savollar yaratildi. Partiyani alohida tayyorlash kerak.")
+
+
+if __name__ == "__main__":
+    main()
