@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -43,19 +43,25 @@ async def quiz(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
-        await context.bot.send_poll(
+        keyboard = [
+            [InlineKeyboardButton("A. Samarqand", callback_data="demo:0")],
+            [InlineKeyboardButton("B. Toshkent", callback_data="demo:1")],
+            [InlineKeyboardButton("C. Buxoro", callback_data="demo:2")],
+            [InlineKeyboardButton("D. Xiva", callback_data="demo:3")]
+        ]
+
+        await context.bot.send_message(
             chat_id=CHANNEL_ID,
-            question="🇺🇿 O‘zbekiston poytaxti qaysi shahar?",
-            options=["Samarqand", "Toshkent", "Buxoro", "Xiva"],
-            type="quiz",
-            correct_option_id=1,
-            is_anonymous=False,
-            explanation="To‘g‘ri javob — Toshkent!"
+            text="🇺🇿 O‘zbekiston poytaxti qaysi shahar?",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-        await update.message.reply_text("Sinov so‘rovnomasi yuborildi!")
+        await update.message.reply_text(
+            "Sinov savoli kanalga yuborildi!"
+        )
 
     except Exception as e:
+        print(f"Quiz xatosi: {e}")
         await update.message.reply_text(f"Xatolik: {e}")
 
 
@@ -67,6 +73,26 @@ async def answer_callback(
     user = query.from_user
 
     try:
+        if not query.data:
+            await query.answer("Noto‘g‘ri tugma!", show_alert=True)
+            return
+
+        # Sinov savoli javoblari
+        if query.data.startswith("demo:"):
+            selected = int(query.data.split(":")[1])
+
+            if selected not in range(4):
+                await query.answer("Noto‘g‘ri javob varianti!", show_alert=True)
+                return
+
+            if selected == 1:
+                await query.answer("To‘g‘ri javob! ✅")
+            else:
+                await query.answer("Noto‘g‘ri javob! ❌")
+
+            return
+
+        # Haqiqiy savollar javoblari
         data = query.data.split(":")
 
         if len(data) != 3 or data[0] != "ans":
@@ -79,11 +105,17 @@ async def answer_callback(
         question = get_question_by_id(question_id)
 
         if question is None or selected_option not in range(4):
-            await query.answer("Savol yoki javob topilmadi!", show_alert=True)
+            await query.answer(
+                "Savol yoki javob topilmadi!",
+                show_alert=True
+            )
             return
 
         if question["batch_date"] is None:
-            await query.answer("Test savoli: javob qayd etilmadi.", show_alert=True)
+            await query.answer(
+                "Test savoli: javob qayd etilmadi.",
+                show_alert=True
+            )
             return
 
         save_answer(
@@ -103,8 +135,6 @@ async def answer_callback(
     except Exception as e:
         print(f"Tugmali javob xatosi: {e}")
         await query.answer("Xatolik yuz berdi!", show_alert=True)
-
-
 async def poll_answer_callback(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
@@ -152,6 +182,7 @@ def main():
         return
 
     app = Application.builder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("quiz", quiz))
     app.add_handler(CallbackQueryHandler(answer_callback))
