@@ -95,7 +95,7 @@ def build_daily_queue(day):
         for attempt in range(5):
             data = make_question(existing)
             with db() as conn, conn.cursor() as cur:
-                cur.execute("select public.quizbot_find_similar_question(%s, %s) as similar", (data["question"], 0.72))
+                cur.execute("select exists (select 1 from public.quizbot_questions where similarity(normalized_text, %s) >= %s) as similar", (re.sub(r"\\s+", " ", data["question"].casefold()).strip(), 0.72))
                 dup = cur.fetchone()["similar"]
                 if dup:
                     existing.append(data["question"])
