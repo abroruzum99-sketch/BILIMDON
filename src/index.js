@@ -58,6 +58,6 @@ async function update(e,u){
  }
 }
 export default {
- async fetch(req,e){const u=new URL(req.url);if(u.pathname==="/health")return Response.json({ok:true,service:"bilimdon"});if(u.pathname!=="/telegram"||req.method!=="POST")return new Response("Not found",{status:404});if(req.headers.get("X-Telegram-Bot-Api-Secret-Token")!==e.TELEGRAM_WEBHOOK_SECRET)return new Response("Unauthorized",{status:401});try{await update(e,await req.json());return Response.json({ok:true})}catch(err){console.error(err);return Response.json({ok:false},{status:200})}},
+ async fetch(req,e){const u=new URL(req.url);if(u.pathname==="/health")return Response.json({ok:true,service:"bilimdon"});if(u.pathname!=="/telegram"||req.method!=="POST")return new Response("Not found",{status:404});if(req.headers.get("X-Telegram-Bot-Api-Secret-Token")!==e.TELEGRAM_WEBHOOK_SECRET)return new Response("Unauthorized",{status:401});try{await update(e,await req.json());return Response.json({ok:true})}catch(err){console.error(err);return Response.json({ok:false},{status:500})}},
  async scheduled(event,e,ctx){ctx.waitUntil(cron(e,new Date(event.scheduledTime)))}
 };
