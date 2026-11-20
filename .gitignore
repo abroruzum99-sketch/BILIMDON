@@ -5,3 +5,8 @@ pycache/
 bilimdon.db
 bilimdon_backup.db
 database_backup.py
+node_modules/
+.wrangler/
+.dev.vars
+.env.*
+!.env.example
