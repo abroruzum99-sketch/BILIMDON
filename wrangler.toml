@@ -1,1 +1,6 @@
-name = "bilimdon-ai-quiz"\nmain = "src/index.js"\ncompatibility_date = "2026-11-21"\n\n[triggers]\ncrons = ["* * * * *"]\n
+name = "bilimdon-ai-quiz"
+main = "src/index.js"
+compatibility_date = "2026-11-21"
+
+[triggers]
+crons = ["* * * * *"]
