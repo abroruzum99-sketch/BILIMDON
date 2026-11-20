@@ -149,7 +149,6 @@ async def leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def answer_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer()
     try:
         _, qid, raw_idx = query.data.split(":")
         idx = int(raw_idx)
@@ -206,7 +205,7 @@ async def process_due(app):
     with db() as conn, conn.cursor() as cur:
         cur.execute("""select s.telegram_message_id, q.question_text, q.answer_text, q.explanation, q.id
           from public.quizbot_schedule s join public.quizbot_questions q on q.id=s.question_id
-          where s.status='posted' and q.posted_at <= %s""",(now-timedelta(minutes=3),))
+          where s.status='posted' and s.revealed_at is null and q.posted_at <= %s""",(now-timedelta(minutes=3),))
         reveal = cur.fetchall()
         for r in reveal:
             cur.execute("select id from public.quizbot_schedule where telegram_message_id=%s",(r["telegram_message_id"],))
@@ -215,7 +214,7 @@ async def process_due(app):
                 await app.bot.edit_message_text(chat_id=CHANNEL_ID,message_id=r["telegram_message_id"],
                   text=f"🧠 {r['question_text']}\n\n✅ To'g'ri javob: {r['answer_text']}\n\n💡 Izoh: {r['explanation'] or 'Ajoyib qatnashganingiz uchun rahmat!'}\n\n🏆 Keyingi savolni kuting!",
                   reply_markup=None)
-                cur.execute("update public.quizbot_schedule set status='revealed' where id=%s",(sid,))
+                cur.execute("update public.quizbot_schedule set revealed_at=now() where id=%s",(sid,))
             except Exception as exc:
                 log.warning("Javobni ochishda xato: %s",exc)
 
