@@ -47,9 +47,9 @@ async function settings(e){return (await db(e,"quizbot_settings","id=eq.1&select
 async function cron(e,now){
  const c=await settings(e);if(!c?.enabled)return;
  const local=new Date(now.getTime()+5*3600000),day=local.toISOString().slice(0,10),hh=local.getUTCHours(),mm=local.getUTCMinutes();
- const kind=day==='2026-11-22'&&hh===4&&mm===23?'oneoff_0423':mm===0&&hh===12?'noon':mm===0&&hh===18?'evening':null;
+ const kind=mm===0&&hh===12?'noon':mm===0&&hh===18?'evening':null;
  if(kind){
-  const start=new Date(day+'T'+(kind==='oneoff_0423'?'04:23:00':kind==='noon'?'12:00:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=kind==='oneoff_0423'?30:25,sessionTitle=kind==='oneoff_0423'?'BIR MARTALIK MAXSUS':kind==='noon'?'KUNDUZGI':'KECHKI';
+  const start=new Date(day+'T'+(kind==='noon'?'12:00:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=25,sessionTitle=kind==='noon'?'KUNDUZGI':'KECHKI';
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
   if(!sess)sess=(await db(e,'quizbot_sessions','session_date=eq.'+day+'&session_type=eq.'+kind+'&select=*'))[0];
   if(sess&&sess.status==='active'){
