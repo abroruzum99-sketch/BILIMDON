@@ -36,15 +36,23 @@ async function cron(e,now){
   const s=due[0],claim=await db(e,"quizbot_schedule","id=eq."+s.id+"&status=eq.queued",{method:"PATCH",headers:{"Prefer":"return=representation"},body:JSON.stringify({status:"failed",error_text:"processing"})});
   if(claim.length)try{
    const q=await question(e);await db(e,"quizbot_schedule","id=eq."+s.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({question_id:q.id})});
-   const keyboard={inline_keyboard:q.options.map((v,i)=>[{text:""+ "ABCD"[i]+". "+v,callback_data:"ans:"+q.id+":"+i}])};
-   const msg=await tg(e,"sendMessage",{chat_id:c.channel_username,text:"🧠 "+q.question_text+"\n\n⏳ Javob uchun "+c.answer_delay_minutes+" daqiqa!",reply_markup:keyboard});
-   await db(e,"quizbot_schedule","id=eq."+s.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"posted",telegram_message_id:msg.message_id,error_text:null})});
+   const usePoll=Math.random()<0.5;
+   let msg,pollId=null,postType="inline";
+   if(usePoll){
+    const correctIndex=q.options.indexOf(q.answer_text);
+    msg=await tg(e,"sendPoll",{chat_id:c.channel_username,question:q.question_text.slice(0,300),options:q.options,type:"quiz",is_anonymous:true,correct_option_ids:[correctIndex],open_period:Math.max(5,Math.min(600,c.answer_delay_minutes*60)),hide_results_until_closes:true,explanation:(q.explanation||"Javob muddati tugagach to'g'ri javob e'lon qilinadi.").slice(0,200)});
+    pollId=msg.poll?.id||null;postType="poll";
+   }else{
+    const keyboard={inline_keyboard:q.options.map((v,i)=>[{text:""+ "ABCD"[i]+". "+v,callback_data:"ans:"+q.id+":"+i}])};
+    msg=await tg(e,"sendMessage",{chat_id:c.channel_username,text:"🧠 "+q.question_text+"\\n\\n⏳ Javob uchun "+c.answer_delay_minutes+" daqiqa!",reply_markup:keyboard});
+   }
+   await db(e,"quizbot_schedule","id=eq."+s.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"posted",telegram_message_id:msg.message_id,telegram_poll_id:pollId,post_type:postType,error_text:null})});
    await db(e,"quizbot_questions","id=eq."+q.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"posted",posted_at:now.toISOString()})});
   }catch(err){await db(e,"quizbot_schedule","id=eq."+s.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"queued",error_text:String(err).slice(0,800)})});console.error(err)}
  }
  const reveal=await db(e,"quizbot_schedule","select=*,quizbot_questions(*)&status=eq.posted&revealed_at=is.null&order=scheduled_at.asc&limit=8");
  for(const s of reveal){const q=s.quizbot_questions;if(!q?.posted_at||new Date(q.posted_at).getTime()>now.getTime()-c.answer_delay_minutes*60000)continue;
-  try{await tg(e,"editMessageText",{chat_id:c.channel_username,message_id:s.telegram_message_id,text:"🧠 "+q.question_text+"\n\n✅ To'g'ri javob: "+q.answer_text+"\n\n💡 Izoh: "+(q.explanation||"Qatnashganingiz uchun rahmat!")});await db(e,"quizbot_schedule","id=eq."+s.id+"&revealed_at=is.null",{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({revealed_at:now.toISOString()})})}catch(err){console.error("Reveal",err)}
+  try{const revealText="🏆 JAVOB E'LON QILINADI!\\n\\n🧠 "+q.question_text+"\\n\\n✅ To'g'ri javob: "+q.answer_text+"\\n\\n💡 Izoh: "+(q.explanation||"Qatnashganingiz uchun rahmat!");if(s.post_type==="poll")await tg(e,"sendMessage",{chat_id:c.channel_username,text:revealText});else await tg(e,"editMessageText",{chat_id:c.channel_username,message_id:s.telegram_message_id,text:revealText});await db(e,"quizbot_schedule","id=eq."+s.id+"&revealed_at=is.null",{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({revealed_at:now.toISOString()})})}catch(err){console.error("Reveal",err)}
  }
 }
 async function update(e,u){
