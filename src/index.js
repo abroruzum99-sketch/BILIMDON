@@ -11,7 +11,7 @@ async function question(e){
  let raw="";
  if(e.AI?.run){
   const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Faqat so'ralgan JSON obyektini qaytar."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:700,temperature:.8});
-  raw=out?.response||"";if(!raw)throw Error("Cloudflare AI javobi bo'sh");
+  const response=out?.response;raw=typeof response==="string"?response:JSON.stringify(response??out);if(!raw||raw==="{}")throw Error("Cloudflare AI javobi bo'sh");
  }else{
   const u="https://generativelanguage.googleapis.com/v1beta/models/"+(e.GEMINI_MODEL||"gemini-3.8-flash")+":generateContent?key="+e.GEMINI_API_KEY;
   const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8}})});
