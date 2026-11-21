@@ -4,3 +4,6 @@ compatibility_date = "2026-11-20"
 
 [triggers]
 crons = ["* * * * *"]
+
+[ai]
+binding = "AI"
