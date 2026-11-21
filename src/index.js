@@ -4,22 +4,39 @@ async function db(e,t,q="",o={}){const r=await fetch(e.SUPABASE_URL+"/rest/v1/"+
 async function tg(e,m,b){const r=await fetch(TG+e.BOT_TOKEN+"/"+m,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result}
 const localDay=d=>{const x=new Date(d.getTime()+300000*60);return x.toISOString().slice(0,10)};
 const norm=s=>String(s||"").toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+function modelText(v){
+ if(typeof v==="string")return v;
+ if(Array.isArray(v)){for(const x of v){const s=modelText(x);if(s)return s}return ""}
+ if(v&&typeof v==="object"){
+  for(const k of ["response","output_text","text","generated_text","content"]){if(v[k]!==undefined){const s=modelText(v[k]);if(s)return s}}
+  if(v.question&&v.options)return JSON.stringify(v);
+ }
+ return "";
+}
+function parseQuestion(raw){
+ const s=String(raw||"").trim().replace(/^\x60{3}(?:json)?\s*/i,"").replace(/\s*\x60{3}$/,"").trim();
+ const a=s.indexOf("{"),b=s.lastIndexOf("}");
+ if(a<0||b<a)throw Error("AI javobida JSON topilmadi");
+ return JSON.parse(s.slice(a,b+1));
+}
+const categoryEmoji={"Mantiq":"🧩","Matematika":"🔢","Tabiiy fanlar":"🔬","Tarix":"🏛️","Geografiya":"🌍","Til va adabiyot":"📚","Texnologiya":"💻","Umumiy bilim":"🌟"};
 async function question(e){
  const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
  const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"],cat=cats[Math.floor(Math.random()*cats.length)];
- const prompt=`Sen professional o'zbek tilidagi intellektual Telegram shou muharririsan. Kategoriya: ${cat}. Oldingi savollarni takrorlama va ularga mazmunan juda o'xshash savol tuzma: ${JSON.stringify(old.map(x=>x.question_text))}. Kanal uchun odamni qiziqtiradigan, o'ylantiradigan, ravon va tabiiy savol yoz. Kirish jumlasini navbatma-navbat o'zgartir: "🧠 DIQQAT, BILIMDONLAR!", "🤔 BUNI TOPA OLASIZMI?", "🔎 QIZIQARLI SAVOL!", "⚡ TEZKOR BELLASHUV!" kabi; bir xil sarlavhani ketma-ket ishlatma. Savol aniq, fakt jihatdan ishonchli va faqat bitta shubhasiz to'g'ri javobga ega bo'lsin. 4 ta qisqa, bir-biridan farqli variant tuz; noto'g'ri variantlar ham ishonarli bo'lsin. Siyosiy targ'ibot, noaniq afsona, tekshirib bo'lmaydigan statistika va ikki xil talqin qilinadigan savollardan qoch. question maydonida Telegram postiga tayyor, 2-5 qatordan iborat chiroyli matn bo'lsin; javobni oshkor qilma. explanation maydonida to'g'ri javob sababini 2-3 qiziqarli gapda tushuntir. Faqat JSON qaytar: {"question":"...","options":["...","...","...","..."],"answer":"to'g'ri variant matni","explanation":"...","category":"...","difficulty":"easy|medium|hard"}`;
+ const prompt=`Sen professional o'zbek tilidagi intellektual Telegram shou muharririsan. Kategoriya: ${cat}. Oldingi savollarni takrorlama va ularga mazmunan juda o'xshash savol tuzma: ${JSON.stringify(old.map(x=>x.question_text))}. Kanal uchun odamni qiziqtiradigan, o'ylantiradigan, ravon va tabiiy savol yoz. Savol matnining boshiga mavzuga mos 1-2 emoji qo'sh (masalan 🧠 🤔 🌍 🔬 🏛️ 🚀 🐾 💡), emojilarni har safar almashtir; ortiqcha emoji bilan to'ldirma. Kirish jumlasini ham turlicha qil: "✨ BILIMDONLAR, DIQQAT!", "🤔 BUNI TOPA OLASIZMI?", "🔎 QIZIQARLI SAVOL!", "⚡ TEZKOR BELLASHUV!" kabi; bir xil sarlavhani ketma-ket ishlatma. Savol aniq, fakt jihatdan ishonchli va faqat bitta shubhasiz to'g'ri javobga ega bo'lsin. 4 ta qisqa, bir-biridan farqli variant tuz; noto'g'ri variantlar ham ishonarli bo'lsin. Siyosiy targ'ibot, noaniq afsona, tekshirib bo'lmaydigan statistika va ikki xil talqin qilinadigan savollardan qoch. question maydonida Telegram postiga tayyor, 2-5 qatordan iborat chiroyli matn bo'lsin; javobni oshkor qilma. explanation maydonida to'g'ri javob sababini 2-3 qiziqarli gapda tushuntir. Faqat JSON qaytar: {"question":"...","options":["...","...","...","..."],"answer":"to'g'ri variant matni","explanation":"...","category":"...","difficulty":"easy|medium|hard"}`;
  let raw="";
  if(e.AI?.run){
   const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Faqat so'ralgan JSON obyektini qaytar."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:700,temperature:.8});
-  const response=out?.response;raw=typeof response==="string"?response:JSON.stringify(response??out);if(!raw||raw==="{}")throw Error("Cloudflare AI javobi bo'sh");
+  raw=modelText(out);if(!raw)throw Error("Cloudflare AI javobi bo'sh");
  }else{
   const u="https://generativelanguage.googleapis.com/v1beta/models/"+(e.GEMINI_MODEL||"gemini-3.8-flash")+":generateContent?key="+e.GEMINI_API_KEY;
   const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8}})});
   const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,350));
   raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
  }
- const q=JSON.parse(raw.replace(/^\x60\x60\x60json\s*|\s*\x60\x60\x60$/g,"").trim());
- if(!q.question||!Array.isArray(q.options)||q.options.length!==4||new Set(q.options).size!==4||!q.options.includes(q.answer))throw Error("Gemini savol formati xato");
+ const q=parseQuestion(raw);
+ if(typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim())||new Set(q.options.map(x=>x.trim())).size!==4||typeof q.answer!=="string"||!q.options.some(x=>x.trim()===q.answer.trim()))throw Error("AI savol formati xato");
+ q.question=q.question.trim();q.options=q.options.map(x=>x.trim());q.answer=q.answer.trim();
  const n=norm(q.question),words=new Set(n.split(" "));
  for(const x of old){const w=new Set(norm(x.question_text).split(" ")),same=[...words].filter(v=>w.has(v)).length/Math.max(1,new Set([...words,...w]).size);if(same>.84)throw Error("O'xshash savol qayta tekshiriladi")}
  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
@@ -47,11 +64,15 @@ async function cron(e,now){
    let msg,pollId=null,postType="inline";
    if(usePoll){
     const correctIndex=q.options.indexOf(q.answer_text);
-    msg=await tg(e,"sendPoll",{chat_id:c.channel_username,question:q.question_text.slice(0,300),options:q.options,type:"quiz",is_anonymous:true,correct_option_ids:[correctIndex],open_period:Math.max(5,Math.min(600,c.answer_delay_minutes*60)),hide_results_until_closes:true,explanation:(q.explanation||"Javob muddati tugagach to'g'ri javob e'lon qilinadi.").slice(0,200)});
+    const pollTitle="🌟 BILIMDON | "+(q.category||"INTELLEKTUAL SAVOL")+"\n"+q.question_text;
+    const pollOptions=q.options.map((v,i)=>"🔹 "+ "ABCD"[i]+") "+v);
+    msg=await tg(e,"sendPoll",{chat_id:c.channel_username,question:pollTitle.slice(0,300),options:pollOptions,type:"quiz",is_anonymous:true,correct_option_ids:[correctIndex],open_period:Math.max(5,Math.min(600,c.answer_delay_minutes*60)),explanation:(q.explanation||"Javob muddati tugagach to'g'ri javob e'lon qilinadi.").slice(0,200)});
     pollId=msg.poll?.id||null;postType="poll";
    }else{
-    const keyboard={inline_keyboard:q.options.map((v,i)=>[{text:""+ "ABCD"[i]+". "+v,callback_data:"ans:"+q.id+":"+i}])};
-    msg=await tg(e,"sendMessage",{chat_id:c.channel_username,text:"🧠 "+q.question_text+"\n\n⏳ Javob uchun "+c.answer_delay_minutes+" daqiqa!",reply_markup:keyboard});
+    const keyboard={inline_keyboard:q.options.map((v,i)=>[{text:"🔹 "+ "ABCD"[i]+". "+v,callback_data:"ans:"+q.id+":"+i}])};
+    const topicEmoji=categoryEmoji[q.category]||"🌟";
+    const postText="🌟 BILIMDON — INTELLEKTUAL SHOU 🏆\n\n"+topicEmoji+" "+String(q.category||"UMUMIY BILIM").toLocaleUpperCase("uz")+" | 1-SAVOL\n\n"+q.question_text+"\n\n🎯 JAVOBNI TANLANG\n\n⏳ Sizda "+c.answer_delay_minutes+" daqiqa bor!\n🍀 Omad, bilimdon!";
+    msg=await tg(e,"sendMessage",{chat_id:c.channel_username,text:postText,reply_markup:keyboard});
    }
    await db(e,"quizbot_schedule","id=eq."+s.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"posted",telegram_message_id:msg.message_id,telegram_poll_id:pollId,post_type:postType,error_text:null})});
    await db(e,"quizbot_questions","id=eq."+q.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"posted",posted_at:now.toISOString()})});
@@ -59,7 +80,7 @@ async function cron(e,now){
  }
  const reveal=await db(e,"quizbot_schedule","select=*,quizbot_questions(*)&status=eq.posted&revealed_at=is.null&order=scheduled_at.asc&limit=8");
  for(const s of reveal){const q=s.quizbot_questions;if(!q?.posted_at||new Date(q.posted_at).getTime()>now.getTime()-c.answer_delay_minutes*60000)continue;
-  try{const revealText="🏆 JAVOB E'LON QILINADI!\n\n🧠 "+q.question_text+"\n\n✅ To'g'ri javob: "+q.answer_text+"\n\n💡 Izoh: "+(q.explanation||"Qatnashganingiz uchun rahmat!");if(s.post_type==="poll")await tg(e,"sendMessage",{chat_id:c.channel_username,text:revealText});else await tg(e,"editMessageText",{chat_id:c.channel_username,message_id:s.telegram_message_id,text:revealText});await db(e,"quizbot_schedule","id=eq."+s.id+"&revealed_at=is.null",{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({revealed_at:now.toISOString()})})}catch(err){console.error("Reveal",err)}
+  try{const revealText="🏆 BILIMDON — TO'G'RI JAVOB! 🎉\n\n🧠 "+q.question_text+"\n\n✅ JAVOB: "+q.answer_text+"\n\n💡 BILIB OLING: "+(q.explanation||"Qatnashganingiz uchun rahmat!")+"\n\n👏 Ishtirok etgan barchaga rahmat!";if(s.post_type==="poll")await tg(e,"sendMessage",{chat_id:c.channel_username,text:revealText});else await tg(e,"editMessageText",{chat_id:c.channel_username,message_id:s.telegram_message_id,text:revealText});await db(e,"quizbot_schedule","id=eq."+s.id+"&revealed_at=is.null",{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({revealed_at:now.toISOString()})})}catch(err){console.error("Reveal",err)}
  }
 }
 async function update(e,u){
