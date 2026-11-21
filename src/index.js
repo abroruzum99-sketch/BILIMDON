@@ -47,16 +47,16 @@ async function settings(e){return (await db(e,"quizbot_settings","id=eq.1&select
 async function cron(e,now){
  const c=await settings(e);if(!c?.enabled)return;
  const local=new Date(now.getTime()+5*3600000),day=local.toISOString().slice(0,10),hh=local.getUTCHours(),mm=local.getUTCMinutes();
- const kind=mm===0&&hh===12?'noon':mm===0&&hh===18?'evening':null;
+ const kind=day==='2026-11-22'&&hh===4&&mm===15?'oneoff_0415':mm===0&&hh===12?'noon':mm===0&&hh===18?'evening':null;
  if(kind){
-  const start=new Date(day+'T'+(kind==='noon'?'12:00:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000);
+  const start=new Date(day+'T'+(kind==='oneoff_0415'?'04:15:00':kind==='noon'?'12:00:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=kind==='oneoff_0415'?30:25,sessionTitle=kind==='oneoff_0415'?'BIR MARTALIK MAXSUS':kind==='noon'?'KUNDUZGI':'KECHKI';
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
   if(!sess)sess=(await db(e,'quizbot_sessions','session_date=eq.'+day+'&session_type=eq.'+kind+'&select=*'))[0];
   if(sess&&sess.status==='active'){
    const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id&limit=1');
    if(!prior.length)try{
-    await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+(kind==='noon'?'KUNDUZGI':'KECHKI')+' BELLASHUVI\n\n🧠 25 ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar bellashuv tugamaguncha oshkor qilinmaydi.'});
-    for(let i=1;i<=25;i++){
+    await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar bellashuv tugamaguncha oshkor qilinmaydi.'});
+    for(let i=1;i<=questionCount;i++){
      const q=await question(e);
      const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:start.toISOString(),status:'queued'})});
      const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'🔹 '+'ABCD'[j]+'. '+v,callback_data:'ans:'+q.id+':'+j}])};
@@ -74,8 +74,8 @@ async function cron(e,now){
   const ids=sched.map(x=>x.question_id);if(!ids.length)continue;
   const ans=await db(e,'quizbot_answers','question_id=in.('+ids.join(',')+')&select=question_id,telegram_user_id,is_correct');
   const subs=await db(e,'quizbot_subscribers','select=telegram_user_id,username,first_name,score&order=score.desc&limit=1000');
-  const totals=subs.map(u=>{const mine=ans.filter(x=>String(x.telegram_user_id)===String(u.telegram_user_id));return {...u,correct:mine.filter(x=>x.is_correct).length,wrong:mine.filter(x=>!x.is_correct).length,unanswered:25-mine.length};}).sort((x,y)=>y.correct-x.correct||x.wrong-y.wrong);
-  for(let i=0;i<totals.length;i++){const u=totals[i];await db(e,'quizbot_session_results','on_conflict=session_id,telegram_user_id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({session_id:s.id,telegram_user_id:u.telegram_user_id,correct_count:u.correct,wrong_count:u.wrong,unanswered_count:u.unanswered,rank:i+1})});try{await tg(e,'sendMessage',{chat_id:u.telegram_user_id,text:'🏆 BILIMDON — NATIJA\n\n✅ To‘g‘ri: '+u.correct+'/25\n❌ Noto‘g‘ri: '+u.wrong+'\n⌛ Javobsiz: '+u.unanswered+'\n📊 Reyting: '+(i+1)+'/'+totals.length+'\n\nKeyingi bellashuvda omad!'});}catch(err){console.error('Result DM',u.telegram_user_id,err)}}
+  const totals=subs.map(u=>{const mine=ans.filter(x=>String(x.telegram_user_id)===String(u.telegram_user_id));return {...u,correct:mine.filter(x=>x.is_correct).length,wrong:mine.filter(x=>!x.is_correct).length,unanswered:sched.length-mine.length};}).sort((x,y)=>y.correct-x.correct||x.wrong-y.wrong);
+  for(let i=0;i<totals.length;i++){const u=totals[i];await db(e,'quizbot_session_results','on_conflict=session_id,telegram_user_id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({session_id:s.id,telegram_user_id:u.telegram_user_id,correct_count:u.correct,wrong_count:u.wrong,unanswered_count:u.unanswered,rank:i+1})});try{await tg(e,'sendMessage',{chat_id:u.telegram_user_id,text:'🏆 BILIMDON — NATIJA\n\n✅ To‘g‘ri: '+u.correct+'/'+sched.length+'\n❌ Noto‘g‘ri: '+u.wrong+'\n⌛ Javobsiz: '+u.unanswered+'\n📊 Reyting: '+(i+1)+'/'+totals.length+'\n\nKeyingi bellashuvda omad!'});}catch(err){console.error('Result DM',u.telegram_user_id,err)}}
   const participants=[...new Set(ans.map(x=>String(x.telegram_user_id)))];
   for(const uid of participants){let text='📚 TO‘G‘RI JAVOBLAR VA IZOHLAR\n\n';for(const r of sched){const q=(await db(e,'quizbot_questions','id=eq.'+r.question_id+'&select=answer_text,explanation'))[0];if(q)text+=r.question_number+'. '+q.answer_text+' — '+q.explanation+'\n\n';}try{await tg(e,'sendMessage',{chat_id:Number(uid),text:text.slice(0,3900)});}catch(err){console.error('Answers DM',uid,err)}}
   await db(e,'quizbot_sessions','id=eq.'+s.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'finished',finished_at:now.toISOString()})});
