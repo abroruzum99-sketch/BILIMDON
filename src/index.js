@@ -44,7 +44,7 @@ async function cron(e,now){
     pollId=msg.poll?.id||null;postType="poll";
    }else{
     const keyboard={inline_keyboard:q.options.map((v,i)=>[{text:""+ "ABCD"[i]+". "+v,callback_data:"ans:"+q.id+":"+i}])};
-    msg=await tg(e,"sendMessage",{chat_id:c.channel_username,text:"🧠 "+q.question_text+"\\n\\n⏳ Javob uchun "+c.answer_delay_minutes+" daqiqa!",reply_markup:keyboard});
+    msg=await tg(e,"sendMessage",{chat_id:c.channel_username,text:"🧠 "+q.question_text+"\n\n⏳ Javob uchun "+c.answer_delay_minutes+" daqiqa!",reply_markup:keyboard});
    }
    await db(e,"quizbot_schedule","id=eq."+s.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"posted",telegram_message_id:msg.message_id,telegram_poll_id:pollId,post_type:postType,error_text:null})});
    await db(e,"quizbot_questions","id=eq."+q.id,{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({status:"posted",posted_at:now.toISOString()})});
@@ -52,7 +52,7 @@ async function cron(e,now){
  }
  const reveal=await db(e,"quizbot_schedule","select=*,quizbot_questions(*)&status=eq.posted&revealed_at=is.null&order=scheduled_at.asc&limit=8");
  for(const s of reveal){const q=s.quizbot_questions;if(!q?.posted_at||new Date(q.posted_at).getTime()>now.getTime()-c.answer_delay_minutes*60000)continue;
-  try{const revealText="🏆 JAVOB E'LON QILINADI!\\n\\n🧠 "+q.question_text+"\\n\\n✅ To'g'ri javob: "+q.answer_text+"\\n\\n💡 Izoh: "+(q.explanation||"Qatnashganingiz uchun rahmat!");if(s.post_type==="poll")await tg(e,"sendMessage",{chat_id:c.channel_username,text:revealText});else await tg(e,"editMessageText",{chat_id:c.channel_username,message_id:s.telegram_message_id,text:revealText});await db(e,"quizbot_schedule","id=eq."+s.id+"&revealed_at=is.null",{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({revealed_at:now.toISOString()})})}catch(err){console.error("Reveal",err)}
+  try{const revealText="🏆 JAVOB E'LON QILINADI!\n\n🧠 "+q.question_text+"\n\n✅ To'g'ri javob: "+q.answer_text+"\n\n💡 Izoh: "+(q.explanation||"Qatnashganingiz uchun rahmat!");if(s.post_type==="poll")await tg(e,"sendMessage",{chat_id:c.channel_username,text:revealText});else await tg(e,"editMessageText",{chat_id:c.channel_username,message_id:s.telegram_message_id,text:revealText});await db(e,"quizbot_schedule","id=eq."+s.id+"&revealed_at=is.null",{method:"PATCH",headers:{"Prefer":"return=minimal"},body:JSON.stringify({revealed_at:now.toISOString()})})}catch(err){console.error("Reveal",err)}
  }
 }
 async function update(e,u){
