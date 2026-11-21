@@ -8,7 +8,7 @@ async function question(e){
  const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
  const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"],cat=cats[Math.floor(Math.random()*cats.length)];
  const prompt=`O'zbek lotin tilida yangi original viktorina savoli. Kategoriya: ${cat}. Oldingi savollarni takrorlama: ${JSON.stringify(old.map(x=>x.question_text))}. Bitta aniq savol, 4 turli variant, bittasi to'g'ri. Faqat JSON: {"question":"...","options":["...","...","...","..."],"answer":"to'g'ri variant matni","explanation":"1-3 gap","category":"...","difficulty":"easy|medium|hard"}`;
- const u="https://generativelanguage.googleapis.com/v1beta/models/"+(e.GEMINI_MODEL||"gemini-2.5-flash")+":generateContent?key="+e.GEMINI_API_KEY;
+ const u="https://generativelanguage.googleapis.com/v1beta/models/"+(e.GEMINI_MODEL||"gemini-3.8-flash")+":generateContent?key="+e.GEMINI_API_KEY;
  const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8}})});
  const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,350));
  const raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"",q=JSON.parse(raw.replace(/^```json\s*|\s*```$/g,"").trim());
