@@ -103,10 +103,12 @@ async function update(e,u){
   }else if(p[1]==='schedule'){
    await tg(e,'sendMessage',{chat_id:uid,text:'📅 <b>BELLASHUV JADVALI</b>\n\n🕛 Kunduzgi bellashuv — <b>12:00</b>\n🌆 Kechki bellashuv — <b>18:00</b>\n🧠 Har birida 25 ta savol\n⏳ Javob berish uchun 1 soat\n\nBarcha vaqtlar Toshkent vaqti bilan.' ,parse_mode:'HTML'});
   }else if(p[1]==='results'){
-   const rows=await db(e,'quizbot_session_results','telegram_user_id=eq.'+uid+'&select=correct_count,wrong_count,unanswered_count,rank,session_id&order=created_at.desc&limit=5');
+   let rows=[];
+   try{rows=await db(e,'quizbot_session_results','telegram_user_id=eq.'+uid+'&select=correct_count,wrong_count,unanswered_count,rank,session_id&order=created_at.desc&limit=5');}
+   catch(err){console.error('Results menu error',err);}
    await tg(e,'sendMessage',{chat_id:uid,text:'📊 <b>SO‘NGGI NATIJALARIM</b>\n\n'+(rows.length?rows.map((x,i)=>(i+1)+'. ✅ '+x.correct_count+'/25  | 🏆 '+x.rank+'-o‘rin').join('\n'):'Hali yakunlangan bellashuv natijalari yo‘q. Birinchi bellashuvda qatnashing!'),parse_mode:'HTML'});
   }else if(p[1]==='rules'){
-   await tg(e,'sendMessage',{chat_id:uid,text:'📖 <b>BELLASHUV QOIDALARI</b>\n\n1️⃣ Har bir bellashuvda 25 ta savol beriladi.\n2️⃣ Javob berish vaqti — 1 soat.\n3️⃣ Har bir savolga faqat bir marta javob berish mumkin.\n4️⃣ Javobni o‘zgartirib bo‘lmaydi.\n5️⃣ To‘g‘ri javob — 1 ball.\n6️⃣ Javoblar bellashuv tugaguncha sir saqlanadi.\n7️⃣ Yakuniy natija va reyting shaxsiy xabarda yuboriladi.\n\n🤝 Halol bellashing va bilim bilan g‘alaba qozoning!',parse_mode:'HTML'});
+   await tg(e,'sendMessage',{chat_id:uid,text:'📖 BELLASHUV QOIDALARI\n\n1️⃣ Har bir bellashuvda 25 ta savol beriladi.\n2️⃣ Javob berish vaqti — 1 soat.\n3️⃣ Har bir savolga faqat bir marta javob berish mumkin.\n4️⃣ Javobni o‘zgartirib bo‘lmaydi.\n5️⃣ To‘g‘ri javob — 1 ball.\n6️⃣ Javoblar bellashuv tugaguncha sir saqlanadi.\n7️⃣ Yakuniy natija va reyting shaxsiy xabarda yuboriladi.\n\n🤝 Halol bellashing va bilim bilan g‘alaba qozoning!'});
   }
   return;
  }
