@@ -47,9 +47,9 @@ async function settings(e){return (await db(e,"quizbot_settings","id=eq.1&select
 async function cron(e,now){
  const c=await settings(e);if(!c?.enabled)return;
  const local=new Date(now.getTime()+5*3600000),day=local.toISOString().slice(0,10),hh=local.getUTCHours(),mm=local.getUTCMinutes();
- const kind=day==='2026-11-22'&&hh===4&&mm===15?'oneoff_0415':mm===0&&hh===12?'noon':mm===0&&hh===18?'evening':null;
+ const kind=day==='2026-11-22'&&hh===4&&mm===23?'oneoff_0423':mm===0&&hh===12?'noon':mm===0&&hh===18?'evening':null;
  if(kind){
-  const start=new Date(day+'T'+(kind==='oneoff_0415'?'04:15:00':kind==='noon'?'12:00:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=kind==='oneoff_0415'?30:25,sessionTitle=kind==='oneoff_0415'?'BIR MARTALIK MAXSUS':kind==='noon'?'KUNDUZGI':'KECHKI';
+  const start=new Date(day+'T'+(kind==='oneoff_0423'?'04:23:00':kind==='noon'?'12:00:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=kind==='oneoff_0423'?30:25,sessionTitle=kind==='oneoff_0423'?'BIR MARTALIK MAXSUS':kind==='noon'?'KUNDUZGI':'KECHKI';
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
   if(!sess)sess=(await db(e,'quizbot_sessions','session_date=eq.'+day+'&session_type=eq.'+kind+'&select=*'))[0];
   if(sess&&sess.status==='active'){
@@ -60,7 +60,7 @@ async function cron(e,now){
      const q=await question(e);
      const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:start.toISOString(),status:'queued'})});
      const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'🔹 '+'ABCD'[j]+'. '+v,callback_data:'ans:'+q.id+':'+j}])};
-     const text='🌟 BILIMDON | '+(kind==='noon'?'KUNDUZGI':'KECHKI')+' — '+i+'/25\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
+     const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
      const msg=await tg(e,'sendMessage',{chat_id:c.channel_username,text,reply_markup:keyboard});
      await db(e,'quizbot_schedule','id=eq.'+rows[0].id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,post_type:'inline'})});
      await db(e,'quizbot_questions','id=eq.'+q.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',posted_at:now.toISOString()})});
