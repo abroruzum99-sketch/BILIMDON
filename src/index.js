@@ -52,13 +52,20 @@ async function question(e){
  // AI ba'zan javobni variant harfi yoki raqami, ba'zan esa to'liq matn ko'rinishida qaytaradi.
  if(!Array.isArray(q.options)&&q.options&&typeof q.options==="object")q.options=["A","B","C","D"].map(k=>q.options[k]??q.options[k.toLowerCase()]);
  if(Array.isArray(q.options))q.options=q.options.map(x=>typeof x==="string"?x:(x?.text??x?.value??x?.option??""));
- const answerRaw=q.answer??q.correct_answer??q.correct??q.correctAnswer??"";
- if(typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim())||new Set(q.options.map(x=>norm(x))).size!==4)throw Error("AI savol formati xato: savol yoki 4 ta variant noto'g'ri");
- const answerKey=String(answerRaw).trim(),letter=answerKey.match(/^([ABCD])(?:[.)\s]|$)/i),number=answerKey.match(/^([1-4])(?:[.)\s]|$)/);
- let answerIndex=letter?"ABCD".indexOf(letter[1].toUpperCase()):number?Number(number[1])-1:-1;
+ const answerRaw=q.answer??q.correct_answer??q.correct??q.correctAnswer??q.correct_option??q.correctOption??"";
+ if(typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim())||new Set(q.options.map(x=>norm(x))).size!==4){
+  console.error("AI question validation failed; raw:",String(raw).slice(0,1400));
+  throw Error("AI savol formati xato: savol yoki 4 ta variant noto'g'ri");
+ }
+ const answerKey=String(answerRaw).trim(),letter=answerKey.match(/^([ABCD])(?:[.)\\s:-]|$)/i),number=answerKey.match(/^([1-4])(?:[.)\\s:-]|$)/);
+ let answerIndex=Number.isInteger(q.answer_index)?q.answer_index:Number.isInteger(q.correct_option_index)?q.correct_option_index:-1;
+ if(answerIndex<0||answerIndex>3)answerIndex=letter?"ABCD".indexOf(letter[1].toUpperCase()):number?Number(number[1])-1:-1;
  if(answerIndex<0)answerIndex=q.options.findIndex(x=>norm(x)===norm(answerKey));
- if(answerIndex<0&&answerRaw&&typeof answerRaw==="object")answerIndex=q.options.findIndex(x=>norm(x)===norm(answerRaw.text??answerRaw.value??""));
- if(answerIndex<0||answerIndex>3)throw Error("AI savol formati xato: to'g'ri javob 4 variantdan topilmadi");
+ if(answerIndex<0&&answerRaw&&typeof answerRaw==="object")answerIndex=q.options.findIndex(x=>norm(x)===norm(answerRaw.text??answerRaw.value??answerRaw.option??""));
+ if(answerIndex<0||answerIndex>3){
+  console.error("AI answer mapping failed; answer:",JSON.stringify(answerRaw),"options:",JSON.stringify(q.options),"raw:",String(raw).slice(0,1400));
+  throw Error("AI savol formati xato: to'g'ri javob 4 variantdan topilmadi");
+ }
  q.question=q.question.trim();q.options=q.options.map(x=>x.trim());q.answer=q.options[answerIndex];
  const n=norm(q.question),words=new Set(n.split(" "));
  for(const x of old){const w=new Set(norm(x.question_text).split(" ")),same=[...words].filter(v=>w.has(v)).length/Math.max(1,new Set([...words,...w]).size);if(same>.84)throw Error("O'xshash savol qayta tekshiriladi")}
@@ -80,18 +87,21 @@ async function cron(e,now){
    sess.status='active';
   }
   if(sess&&sess.status==='active'){
-   const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id');
+   const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id,question_id,question_number,status,telegram_message_id');
    if(prior.length<questionCount)try{
-    let firstQuestion=null;
-    if(!prior.length){
-     firstQuestion=await question(e);
-     await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar natijalar e’lon qilinguncha oshkor qilinmaydi.'});
-    }
-    for(let i=prior.length+1;i<=questionCount;i++){
-     const q=i===1&&firstQuestion?firstQuestion:await question(e);
-     const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:start.toISOString(),status:'queued'})});
+    if(!prior.length)await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\\n\\n🧠 '+questionCount+' ta yangi savol!\\n⏰ Javob berish uchun 1 soat vaqt.\\n🔒 To‘g‘ri javoblar natijalar e’lon qilinmaguncha oshkor qilinmaydi.'});
+    for(let i=1;i<=questionCount;i++){
+     const existing=prior.find(x=>Number(x.question_number)===i);
+     if(existing?.status==='posted')continue;
+     const q=existing?(await db(e,'quizbot_questions','id=eq.'+existing.question_id+'&select=*'))[0]:await question(e);
+     let scheduleId=existing?.id;
+     if(!existing){
+      const scheduledAt=new Date(start.getTime()+(i-1)*1000).toISOString();
+      const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:scheduledAt,status:'queued'})});
+      scheduleId=rows[0].id;
+     }
      const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'🔹 '+'ABCD'[j]+'. '+v,callback_data:'ans:'+q.id+':'+j}])};
-     const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
+     const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\\n\\n'+q.question_text+'\\n\\n🎯 JAVOBNI TANLANG';
      let msg;
      // Taxminan har uchinchi savol rasmli; qolganlari matn ko‘rinishida.
      if(i%3===1){
@@ -99,7 +109,7 @@ async function cron(e,now){
       catch(imageErr){console.error('Quiz image failed; sending text instead:',String(imageErr&&imageErr.message||imageErr));}
      }
      if(!msg)msg=await tg(e,'sendMessage',{chat_id:c.channel_username,text,reply_markup:keyboard});
-     await db(e,'quizbot_schedule','id=eq.'+rows[0].id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,post_type:'inline'})});
+     await db(e,'quizbot_schedule','id=eq.'+scheduleId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,post_type:'inline'})});
      await db(e,'quizbot_questions','id=eq.'+q.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',posted_at:now.toISOString()})});
     }
    }catch(err){console.error('Session start failed: '+String(err&&err.message||err),err&&err.stack||'');await db(e,'quizbot_sessions','id=eq.'+sess.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'failed'})})}
