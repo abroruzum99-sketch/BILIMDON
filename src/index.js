@@ -4,7 +4,7 @@ async function db(e,t,q="",o={}){const r=await fetch(e.SUPABASE_URL+"/rest/v1/"+
 async function tg(e,m,b){const r=await fetch(TG+e.BOT_TOKEN+"/"+m,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result}
 async function quizImage(e,q){
  if(!e.AI?.run)return null;
- const prompt="Create a clean educational quiz illustration for this question: "+q.question_text+". Category: "+(q.category||"general")+". Show visual clues only. Do not include words, letters, numbers, labels, answer choices, or reveal the correct answer. Clear simple composition for a general-audience intellectual quiz.";
+ const prompt="Create a clean, attractive educational illustration for a general-audience intellectual quiz. Topic for visual inspiration only: "+q.question_text+". Category: "+(q.category||"general")+". Show only the objects, people, places, or visual clues related to the topic. ABSOLUTELY NO TEXT anywhere in the image: no words, no letters, no numbers, no symbols, no captions, no labels, no signs, no logos, no watermarks, no typography, and no answer choices. Do not write or reproduce the question. Do not draw anything that looks like writing. Use a simple realistic or polished illustrative scene with clear visual composition. Never reveal the correct answer.";
  const out=await e.AI.run("@cf/black-forest-labs/flux-1-schnell",{prompt});
  if(out instanceof ArrayBuffer)return new Uint8Array(out);
  if(out instanceof Uint8Array)return out;
