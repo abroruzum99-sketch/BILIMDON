@@ -52,12 +52,17 @@ async function cron(e,now){
   const start=new Date(day+'T'+(kind==='noon'?'05:10:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=25,sessionTitle=kind==='noon'?'KUNDUZGI':'KECHKI';
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
   if(!sess)sess=(await db(e,'quizbot_sessions','session_date=eq.'+day+'&session_type=eq.'+kind+'&select=*'))[0];
+  if(sess&&sess.status==='failed'){
+   await db(e,'quizbot_sessions','id=eq.'+sess.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'active'})});
+   sess.status='active';
+  }
   if(sess&&sess.status==='active'){
    const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id&limit=1');
    if(!prior.length)try{
+    const firstQuestion=await question(e);
     await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar bellashuv natijalari e’lon qilinguncha oshkor qilinmaydi.'});
     for(let i=1;i<=questionCount;i++){
-     const q=await question(e);
+     const q=i===1?firstQuestion:await question(e);
      const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:start.toISOString(),status:'queued'})});
      const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'🔹 '+'ABCD'[j]+'. '+v,callback_data:'ans:'+q.id+':'+j}])};
      const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
