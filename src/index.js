@@ -38,7 +38,7 @@ const categoryEmoji={"Mantiq":"🧩","Matematika":"🔢","Tabiiy fanlar":"🔬",
 async function question(e,questionNumber=0){
  // Qo'lda tayyorlangan 19–25-savollar faqat o'z raqamlarida ishlatiladi.
  if(questionNumber>=19&&questionNumber<=25){
-  const manual=await db(e,"quizbot_questions","source=eq.manual&status=eq.approved&select=*&order=content_hash.asc&limit=1");
+  const manual=await db(e,"quizbot_questions","source=eq.manual&status=eq.approved&select=*&order=content_hash.asc&offset="+(questionNumber-19)+"&limit=1");
   if(manual.length)return manual[0];
  }
  const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
