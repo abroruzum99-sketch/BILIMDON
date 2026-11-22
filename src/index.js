@@ -84,23 +84,55 @@ async function generateQuestionBatch(e,count=5){
  if(rows.length<count)throw Error("Batchdan faqat "+rows.length+"/"+count+" ta yangi savol saqlandi (takroriy savollar chiqarib tashlandi)");
  return rows;
 }
+const BUILTIN_QUESTIONS=[
+["🌍 Yer yuzidagi eng katta okean qaysi? ",["Atlantika","Hind","Tinch","Shimoliy Muz"],2,"Tinch okeani maydoni bo'yicha dunyodagi eng katta okean. U Yer yuzasining katta qismini egallaydi.","Geografiya"],
+["🔬 O'simliklar fotosintez jarayonida asosan qaysi gazni yutadi?",["Kislorod","Karbonat angidrid","Azot","Vodorod"],1,"Fotosintezda o'simliklar karbonat angidrid va suvdan foydalanib organik modda hosil qiladi, kislorod ajratadi.","Tabiiy fanlar"],
+["🏛️ Amir Temur davlatining poytaxti qaysi shahar bo'lgan?",["Buxoro","Samarqand","Xiva","Toshkent"],1,"Amir Temur Samarqandni o'z saltanatining poytaxtiga aylantirgan va uni yirik markaz sifatida rivojlantirgan.","Tarix"],
+["🧠 Bir kilogramm paxta og'irmi yoki bir kilogramm temir?",["Paxta","Temir","Ikkalasi teng","Hajmiga bog'liq"],2,"Massa ikkalasida ham bir kilogramm. Moddalar zichligi turlicha bo'lgani uchun hajmi farq qiladi.","Mantiq"],
+["🔢 12 ning kvadrati nechaga teng?",["124","144","122","164"],1,"Sonning kvadrati uni o'ziga ko'paytirishdir: 12 × 12 = 144.","Matematika"],
+["📚 'Xamsa' asarining muallifi kim?",["Zahiriddin Bobur","Alisher Navoiy","Ahmad Yassaviy","Abdulla Qodiriy"],1,"Alisher Navoiy turkiy tilda yozilgan mashhur 'Xamsa' dostonlar majmuasini yaratgan.","Til va adabiyot"],
+["🚀 Quyosh sistemasidagi eng katta sayyora qaysi?",["Saturn","Yer","Yupiter","Neptun"],2,"Yupiter Quyosh sistemasidagi eng katta sayyora bo'lib, gaz gigantlari turkumiga kiradi.","Tabiiy fanlar"],
+["🗺️ O'zbekiston nechta davlat bilan chegaradosh?",["4 ta","5 ta","6 ta","7 ta"],1,"O'zbekiston Qozog'iston, Qirg'iziston, Tojikiston, Afg'oniston va Turkmaniston bilan chegaradosh.","Geografiya"],
+["⚡ Elektr tok kuchining SI tizimidagi birligi nima?",["Volt","Vatt","Amper","Om"],2,"Tok kuchi amperda o'lchanadi. Volt kuchlanish, vatt esa quvvat birligidir.","Tabiiy fanlar"],
+["🌙 Yerning tabiiy yo'ldoshi nima?",["Mars","Oy","Quyosh","Venera"],1,"Oy Yerning yagona tabiiy yo'ldoshi bo'lib, Yer atrofida aylanadi.","Tabiiy fanlar"],
+["🧩 Qaysi son tub son hisoblanadi?",["21","27","29","33"],2,"29 faqat 1 ga va o'ziga bo'linadi. Shu sababli u tub son hisoblanadi.","Matematika"],
+["🏺 Qadimgi Misr yozuvi qanday nomlangan?",["Mixxat","Iyeroglif","Lotin yozuvi","Run yozuvi"],1,"Qadimgi misrliklar rasmsimon belgilar tizimi — iyerogliflardan foydalangan.","Tarix"],
+["💻 Kompyuterning asosiy hisoblash va boshqarish qurilmasi qaysi?",["Monitor","Klaviatura","Protsessor","Printer"],2,"Protsessor buyruqlarni bajaradi va kompyuter ishini boshqaradi.","Texnologiya"],
+["🌡️ Suv normal atmosfera bosimida necha °C da qaynaydi?",["0","50","100","120"],2,"Dengiz sathiga yaqin normal atmosfera bosimida suv 100 °C da qaynaydi.","Tabiiy fanlar"],
+["📖 O'zbek tilida nechta unli harf bor?",["5 ta","6 ta","7 ta","8 ta"],1,"Amaldagi o'zbek lotin alifbosida olti unli harf bor: a, e, i, o, u, o'.","Til va adabiyot"],
+["🌌 Somon yo'li nima?",["Sayyora","Yulduz turkumi","Galaktika","Tumanlik"],2,"Somon yo'li Quyosh sistemasi joylashgan galaktika hisoblanadi.","Tabiiy fanlar"],
+["🏆 Bir asr necha yilga teng?",["10 yil","50 yil","100 yil","1000 yil"],2,"Bir asr yuz yilni tashkil etadi.","Umumiy bilim"],
+["🧮 3, 6, 12, 24 ketma-ketligidagi keyingi son qaysi?",["30","36","48","42"],2,"Har bir keyingi son avvalgisidan ikki baravar katta: 24 × 2 = 48.","Mantiq"],
+["🌊 Dunyodagi eng baland tog' cho'qqisi qaysi?",["K2","Everest","Kilimanjaro","Elbrus"],1,"Everest dengiz sathidan taxminan 8 849 metr baland bo'lib, dunyodagi eng baland cho'qqidir.","Geografiya"],
+["🧬 Inson tanasida qonni haydaydigan a'zo qaysi?",["O'pka","Jigar","Yurak","Buyrak"],2,"Yurak qisqarib-bo'shashish orqali qonni qon tomirlari bo'ylab harakatlantiradi.","Tabiiy fanlar"],
+["🎨 Ranglar spektrida kamalakning odatiy tartibida yashildan keyin qaysi rang keladi?",["Sariq","Ko'k","Qizil","Binafsha"],1,"Kamalak ranglari odatda qizil, zarg'aldoq, sariq, yashil, havorang, ko'k va binafsha tartibida sanaladi.","Umumiy bilim"],
+["📐 To'g'ri burchak necha gradus?",["45°","90°","120°","180°"],1,"To'g'ri burchakning o'lchovi 90 gradusga teng.","Matematika"],
+["🌿 Choyning vatani sifatida ko'pincha qaysi mamlakat ko'rsatiladi?",["Xitoy","Braziliya","Misr","Norvegiya"],0,"Choy o'simligidan foydalanish va uni yetishtirish tarixi qadimgi Xitoy bilan chambarchas bog'liq.","Umumiy bilim"],
+["🛰️ GPS tizimi asosan nima uchun ishlatiladi?",["Rasm chizish","Joylashuvni aniqlash","Matn tarjimasi","Ovoz yozish"],1,"GPS sun'iy yo'ldosh signallari yordamida qurilmaning geografik joylashuvini aniqlashga yordam beradi.","Texnologiya"],
+["🏛️ BMT qaysi yilda tashkil etilgan?",["1919","1945","1955","1961"],1,"Birlashgan Millatlar Tashkiloti 1945-yil 24-oktabrda rasman tashkil topgan.","Tarix"]
+];
+async function seedBuiltinQuestions(e){
+ const existing=await db(e,"quizbot_questions","source=eq.builtin&select=id&limit=1");if(existing.length)return;
+ for(const item of BUILTIN_QUESTIONS){
+  const [question,options,index,explanation,category]=item,n=norm(question),digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+  await db(e,"quizbot_questions","on_conflict=content_hash",{method:"POST",headers:{"Prefer":"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({question_text:question,normalized_text:n,answer_text:options[index],explanation,category,difficulty:"medium",options,content_hash:hash,status:"approved",source:"builtin"})});
+ }
+}
 async function question(e,questionNumber=0){
- // Oldindan tayyorlangan savollar mavjud bo'lsa, belgilangan raqamlarda ishlatiladi.
  if(questionNumber>=19&&questionNumber<=25){
   const manual=await db(e,"quizbot_questions","source=eq.manual&select=*&order=content_hash.asc&offset="+(questionNumber-19)+"&limit=1");
   if(manual.length)return manual[0];
  }
- // Bitta AI so'rovida 5 ta savol olinadi; keyingi savollar shu zaxiradan olinadi.
- const pool=async()=>await db(e,"quizbot_questions","source=eq.gemini_batch&status=eq.approved&select=*&order=created_at.asc&limit=30");
+ const pool=async()=>await db(e,"quizbot_questions","source=in.(gemini_batch,builtin)&status=eq.approved&select=*&order=created_at.asc&limit=100");
  const scheduled=await db(e,"quizbot_schedule","select=question_id&limit=2000");
  const used=new Set(scheduled.map(x=>String(x.question_id)));
  let available=(await pool()).filter(x=>!used.has(String(x.id)));
  if(!available.length){
-  await generateQuestionBatch(e,5);
+  try{await generateQuestionBatch(e,5);}catch(err){console.error("AI batch ishlamadi, tayyor savollar zaxirasi ishga tushadi:",String(err?.message||err));await seedBuiltinQuestions(e);}
   available=(await pool()).filter(x=>!used.has(String(x.id)));
  }
  if(available.length)return available[0];
- throw Error("Yangi savol zaxirasi topilmadi; AI paketi savollarni saqlay olmadi");
+ throw Error("Yangi savollar zaxirasi topilmadi");
 }
 async function settings(e){return (await db(e,"quizbot_settings","id=eq.1&select=*"))[0]}
 async function cron(e,now){
