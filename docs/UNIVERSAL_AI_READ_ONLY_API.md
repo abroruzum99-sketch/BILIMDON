@@ -25,6 +25,10 @@ The API accepts GET only. It does not expose Telegram tokens, Supabase credentia
 6. Set `BILIMDON_ADMIN_USER_IDS` to a comma-separated list of UNIVERSAL_AI account IDs permitted to view the dashboard.
 7. Test the four GET endpoints from the backend. Do not invoke `/setup`, `setWebhook`, or any Telegram send endpoint as part of this check.
 
+## Existing automation to review
+
+The repository also contains a legacy GitHub Actions workflow with scheduled Python batch-send jobs at 03:00, 09:00, 15:00, and 16:00 UTC. Those jobs are separate from the Cloudflare Worker Cron Trigger and may publish additional messages if their GitHub secrets are configured. This PR intentionally leaves that workflow unchanged; confirm whether those extra publishing times are still wanted before disabling them. Do not run its manual dispatch while validating the Worker unless an administrator intends to publish a batch.
+
 ## Deployment safety
 
 - Do not start the legacy Python polling bot or another webhook consumer with the same Telegram bot token.
