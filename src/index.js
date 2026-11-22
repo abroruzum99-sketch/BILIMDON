@@ -36,7 +36,7 @@ function parseQuestion(raw){
 }
 const categoryEmoji={"Mantiq":"🧩","Matematika":"🔢","Tabiiy fanlar":"🔬","Tarix":"🏛️","Geografiya":"🌍","Til va adabiyot":"📚","Texnologiya":"💻","Umumiy bilim":"🌟"};
 async function question(e){
- const manual=await db(e,"quizbot_questions","source=eq.manual&status=eq.approved&select=*&order=created_at.asc&limit=1");
+ const manual=await db(e,"quizbot_questions","source=eq.manual&status=eq.approved&select=*&order=content_hash.asc&limit=1");
  if(manual.length)return manual[0];
  const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
  const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"],cat=cats[Math.floor(Math.random()*cats.length)];
