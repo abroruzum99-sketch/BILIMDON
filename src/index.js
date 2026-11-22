@@ -102,7 +102,7 @@ async function cron(e,now){
       const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:scheduledAt,status:'queued'})});
       scheduleId=rows[0].id;
      }
-     const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'🔹 '+'ABCD'[j]+'. '+v,callback_data:'ans:'+q.id+':'+j}])};
+     const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'ABCD'[j]+') '+v,callback_data:'ans:'+q.id+':'+j}])};
      const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
      let msg;
      // Taxminan har uchinchi savol rasmli; qolganlari matn ko‘rinishida.
