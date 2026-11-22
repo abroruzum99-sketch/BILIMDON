@@ -177,7 +177,7 @@ async function seedBuiltinQuestions(e){
 }
 async function question(e,questionNumber=0){
  if(questionNumber>=19&&questionNumber<=25){
-  const manual=await db(e,"quizbot_questions","source=eq.manual&select=*&order=content_hash.asc&limit=50");
+  const manual=await db(e,"quizbot_questions","source=eq.manual&status=eq.approved&select=*&order=content_hash.asc&limit=50");
   const prior=await db(e,"quizbot_schedule","select=question_id&limit=2000");
   const usedManual=new Set(prior.map(x=>String(x.question_id)));
   const freshManual=manual.find(x=>!usedManual.has(String(x.id)));
@@ -205,8 +205,11 @@ async function cron(e,now){
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
   if(!sess)sess=(await db(e,'quizbot_sessions','session_date=eq.'+day+'&session_type=eq.'+kind+'&select=*'))[0];
   if(sess&&sess.status==='failed'){
-   await db(e,'quizbot_sessions','id=eq.'+sess.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'active'})});
-   sess.status='active';
+   await db(e,'quizbot_sessions','id=eq.'+sess.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'active',starts_at:start.toISOString(),ends_at:end.toISOString()})});
+   sess.status='active';sess.starts_at=start.toISOString();sess.ends_at=end.toISOString();
+  }else if(sess&&sess.status==='active'&&(new Date(sess.starts_at).getTime()!==start.getTime()||new Date(sess.ends_at).getTime()!==end.getTime())){
+   await db(e,'quizbot_sessions','id=eq.'+sess.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({starts_at:start.toISOString(),ends_at:end.toISOString()})});
+   sess.starts_at=start.toISOString();sess.ends_at=end.toISOString();
   }
   if(sess&&sess.status==='active'){
    const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id,question_id,question_number,status,telegram_message_id');
