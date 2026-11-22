@@ -109,9 +109,36 @@ const BUILTIN_QUESTIONS=[
 ["📐 To'g'ri burchak necha gradus?",["45°","90°","120°","180°"],1,"To'g'ri burchakning o'lchovi 90 gradusga teng.","Matematika"],
 ["🌿 Choyning vatani sifatida ko'pincha qaysi mamlakat ko'rsatiladi?",["Xitoy","Braziliya","Misr","Norvegiya"],0,"Choy o'simligidan foydalanish va uni yetishtirish tarixi qadimgi Xitoy bilan chambarchas bog'liq.","Umumiy bilim"],
 ["🛰️ GPS tizimi asosan nima uchun ishlatiladi?",["Rasm chizish","Joylashuvni aniqlash","Matn tarjimasi","Ovoz yozish"],1,"GPS sun'iy yo'ldosh signallari yordamida qurilmaning geografik joylashuvini aniqlashga yordam beradi.","Texnologiya"],
-["🏛️ BMT qaysi yilda tashkil etilgan?",["1919","1945","1955","1961"],1,"Birlashgan Millatlar Tashkiloti 1945-yil 24-oktabrda rasman tashkil topgan.","Tarix"]
+["🏛️ BMT qaysi yilda tashkil etilgan?",["1919","1945","1955","1961"],1,"Birlashgan Millatlar Tashkiloti 1945-yil 24-oktabrda rasman tashkil topgan.","Tarix"],
+["🏔️ Dunyodagi eng uzun quruqlikdagi tog' tizmasi qaysi?",["And tog'lari","Himolay","Alp tog'lari","Ural"],0,"And tog'lari Janubiy Amerikaning g'arbiy chekkasi bo'ylab minglab kilometrga cho'zilgan.","Geografiya"],
+["🧪 Osh tuzining kimyoviy formulasi qaysi?",["H2O","CO2","NaCl","O2"],2,"Osh tuzi natriy va xlor ionlaridan tashkil topgan natriy xloriddir.","Tabiiy fanlar"],
+["📅 Kabisa yilida necha kun bo'ladi?",["364","365","366","367"],2,"Kabisa yilida fevral 29 kun bo'ladi va yil jami 366 kunni tashkil etadi.","Umumiy bilim"],
+["🦇 Qaysi sutemizuvchi hayvon faol uchish qobiliyatiga ega?",["Olmaxon","Ko'rshapalak","Pingvin","Tuya"],1,"Ko'rshapalaklar qanot yordamida faol uchadigan yagona sutemizuvchilar guruhidir.","Tabiiy fanlar"],
+["🔭 Teleskop yordamida asosan nimani kuzatishadi?",["Juda mayda hujayralarni","Uzoq osmon jismlarini","Tovush to'lqinlarini","Yer osti qatlamlarini"],1,"Teleskop uzoqdagi osmon jismlaridan kelayotgan yorug'likni yig'ib, ularni kuzatishga yordam beradi.","Texnologiya"],
+["📏 Perimetr nimani bildiradi?",["Shakl yuzasini","Shakl chegarasi uzunligini","Hajmni","Burchaklar yig'indisini"],1,"Perimetr geometrik shaklning barcha tomonlari uzunliklari yig'indisidir.","Matematika"],
+["🎼 Musiqada bir oktava odatda nechta pog'onani qamrab oladi?",["5","6","7","8"],3,"Oktava bir xil nomdagi ikki tovush orasidagi interval bo'lib, diatonik ketma-ketlikda sakkiz pog'onani qamrab oladi.","Umumiy bilim"],
+["🌱 Urug'dan yangi o'simlikning rivojlanishi nima deyiladi?",["Changlanish","Unish","Bug'lanish","Parchalanish"],1,"Unish jarayonida urug'dagi murtak rivojlanib, ildizcha va novda hosil qiladi.","Tabiiy fanlar"],
+["🗺️ Ekvator Yer sharini qaysi yarimsharlarga ajratadi?",["Sharqiy va g'arbiy","Shimoliy va janubiy","Quruqlik va suv","Issiq va sovuq"],1,"Ekvator Yer sharini shimoliy va janubiy yarimsharlarga ajratuvchi shartli chiziqdir.","Geografiya"],
+["📜 O'zbekiston Respublikasi Konstitutsiyasi ilk bor qaysi yilda qabul qilingan?",["1991","1992","1993","1995"],1,"O'zbekistonning birinchi Konstitutsiyasi 1992-yil 8-dekabrda qabul qilingan.","Tarix"],
+["🧠 Qaysi sezgi a'zosi muvozanatni saqlashda muhim rol o'ynaydi?",["Ichki quloq","Til","Teri","Burun"],0,"Ichki quloqdagi vestibulyar apparat tana holati va muvozanatni sezishda qatnashadi.","Tabiiy fanlar"],
+["🔐 Internetda HTTPS dagi oxirgi S nimani anglatadi?",["System","Secure","Server","Search"],1,"HTTPS dagi S 'Secure' so'zini bildiradi va aloqa TLS orqali shifrlanishini anglatadi.","Texnologiya"],
+["🌞 Quyosh energiyasining asosiy manbai qaysi jarayon?",["Yonish","Yadro sintezi","Bug'lanish","Magnitlanish"],1,"Quyosh markazida vodorod yadrolari geliyga qo'shilib, yadro sintezi natijasida energiya ajraladi.","Tabiiy fanlar"],
+["🏙️ O'zbekistonning eng katta shahri qaysi?",["Samarqand","Andijon","Toshkent","Namangan"],2,"Toshkent O'zbekiston poytaxti va aholisi eng ko'p bo'lgan shahardir.","Geografiya"],
+["🧮 200 ning 15 foizi nechaga teng?",["15","20","30","35"],2,"200 ning 10 foizi 20, 5 foizi 10; jami 15 foiz 30 ga teng.","Matematika"],
+["📚 'O'tkan kunlar' romanini kim yozgan?",["Cho'lpon","Abdulla Qodiriy","Oybek","G'afur G'ulom"],1,"Abdulla Qodiriyning 'O'tkan kunlar' romani o'zbek romanchiligining muhim namunalaridan biridir.","Til va adabiyot"],
+["🧊 Muzning suvga aylanish jarayoni nima deyiladi?",["Qotish","Erish","Kondensatsiya","Sublimatsiya"],1,"Erish — moddaning qattiq holatdan suyuq holatga o'tish jarayonidir.","Tabiiy fanlar"],
+["🌐 Dunyodagi eng katta materik qaysi?",["Afrika","Shimoliy Amerika","Yevrosiyo","Antarktida"],2,"Yevrosiyo maydoni bo'yicha eng katta materik bo'lib, Yevropa va Osiyoni birlashtiradi.","Geografiya"],
+["⚖️ Moddaning zichligi qanday topiladi?",["Massa × hajm","Massa ÷ hajm","Hajm ÷ massa","Massa + hajm"],1,"Zichlik modda massasining hajmiga nisbatidir: ρ = m/V.","Tabiiy fanlar"],
+["🪐 Quyoshga eng yaqin sayyora qaysi?",["Venera","Yer","Merkuriy","Mars"],2,"Merkuriy Quyoshga eng yaqin sayyora hisoblanadi.","Tabiiy fanlar"],
+["🧭 Kompas ignasi odatda qaysi yo'nalishni ko'rsatadi?",["Sharq-g'arb","Shimol-janub","Faqat sharq","Faqat g'arb"],1,"Kompas magnit maydoniga moslanib, ignasi shimol-janub yo'nalishida joylashadi.","Umumiy bilim"],
+["🏛️ Buyuk Ipak yo'li asosan nimani bog'lagan?",["Afrika va Avstraliyani","Sharq va G'arbni","Shimoliy va Janubiy qutbni","Faqat Hindistonni"],1,"Buyuk Ipak yo'li Sharqiy Osiyoni Markaziy Osiyo orqali Yaqin Sharq va Yevropa bilan bog'lagan savdo yo'llari tarmog'i edi.","Tarix"],
+["📡 Wi-Fi texnologiyasi ma'lumotni asosan nima orqali uzatadi?",["Suv to'lqinlari","Radio to'lqinlari","Tovush","Yorug'lik tolasi"],1,"Wi-Fi qurilmalar o'rtasida ma'lumotni radio to'lqinlari yordamida simsiz uzatadi.","Texnologiya"],
+["🧬 DNK molekulasining mashhur shakli qanday?",["Yagona halqa","Ikki spiral","To'g'ri chiziq","Uchburchak"],1,"DNK odatda bir-biriga o'ralgan ikki zanjirdan iborat qo'sh spiral tuzilishga ega.","Tabiiy fanlar"],
+["🌧️ Bulutlarda suv tomchilari qanday hosil bo'ladi?",["Suv bug'ining kondensatsiyasidan","Tuzning erishidan","Muzning yonishidan","Shamolning sovishidan"],0,"Havodagi suv bug'i sovib, mayda tomchilar yoki muz kristallariga kondensatsiyalanadi.","Tabiiy fanlar"],
+["🗣️ Bir nechta tilni biladigan odam qanday ataladi?",["Monolingv","Bilingv faqat","Poliglot","Dialekt"],2,"Poliglot bir nechta tilni biladigan yoki ularda muloqot qila oladigan kishidir.","Til va adabiyot"]
 ];
 async function seedBuiltinQuestions(e){
+ const existing=await db(e,"quizbot_questions","source=eq.builtin&select=id&limit=100");if(existing.length>=BUILTIN_QUESTIONS.length)return;
  for(const item of BUILTIN_QUESTIONS){
   const [question,options,index,explanation,category]=item,n=norm(question),digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
   await db(e,"quizbot_questions","on_conflict=content_hash",{method:"POST",headers:{"Prefer":"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({question_text:question,normalized_text:n,answer_text:options[index],explanation,category,difficulty:"medium",options,content_hash:hash,status:"approved",source:"builtin"})});
