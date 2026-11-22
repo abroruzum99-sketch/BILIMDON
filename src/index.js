@@ -48,9 +48,18 @@ async function question(e){
   const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,350));
   raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
  }
- const q=parseQuestion(raw);
- if(typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim())||new Set(q.options.map(x=>x.trim())).size!==4||typeof q.answer!=="string"||!q.options.some(x=>x.trim()===q.answer.trim()))throw Error("AI savol formati xato");
- q.question=q.question.trim();q.options=q.options.map(x=>x.trim());q.answer=q.answer.trim();
+ let q=parseQuestion(raw);
+ // AI ba'zan javobni variant harfi yoki raqami, ba'zan esa to'liq matn ko'rinishida qaytaradi.
+ if(!Array.isArray(q.options)&&q.options&&typeof q.options==="object")q.options=["A","B","C","D"].map(k=>q.options[k]??q.options[k.toLowerCase()]);
+ if(Array.isArray(q.options))q.options=q.options.map(x=>typeof x==="string"?x:(x?.text??x?.value??x?.option??""));
+ const answerRaw=q.answer??q.correct_answer??q.correct??q.correctAnswer??"";
+ if(typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim())||new Set(q.options.map(x=>norm(x))).size!==4)throw Error("AI savol formati xato: savol yoki 4 ta variant noto'g'ri");
+ const answerKey=String(answerRaw).trim(),letter=answerKey.match(/^([ABCD])(?:[.)\s]|$)/i),number=answerKey.match(/^([1-4])(?:[.)\s]|$)/);
+ let answerIndex=letter?"ABCD".indexOf(letter[1].toUpperCase()):number?Number(number[1])-1:-1;
+ if(answerIndex<0)answerIndex=q.options.findIndex(x=>norm(x)===norm(answerKey));
+ if(answerIndex<0&&answerRaw&&typeof answerRaw==="object")answerIndex=q.options.findIndex(x=>norm(x)===norm(answerRaw.text??answerRaw.value??""));
+ if(answerIndex<0||answerIndex>3)throw Error("AI savol formati xato: to'g'ri javob 4 variantdan topilmadi");
+ q.question=q.question.trim();q.options=q.options.map(x=>x.trim());q.answer=q.options[answerIndex];
  const n=norm(q.question),words=new Set(n.split(" "));
  for(const x of old){const w=new Set(norm(x.question_text).split(" ")),same=[...words].filter(v=>w.has(v)).length/Math.max(1,new Set([...words,...w]).size);if(same>.84)throw Error("O'xshash savol qayta tekshiriladi")}
  const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
