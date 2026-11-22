@@ -62,7 +62,7 @@ async function question(e,questionNumber=0){
   try{
    const model=e.GEMINI_MODEL||"gemini-3.8-flash";
    const u="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
-   const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8,maxOutputTokens:2048,thinkingConfig:{thinkingLevel:"LOW"}}})});
+   const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",maxOutputTokens:2048,thinkingConfig:{thinkingLevel:"LOW"}}})});
    const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,500));
    raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
    if(!raw)throw Error("Gemini javobi bo'sh; finishReason="+(j.candidates?.[0]?.finishReason||"noma'lum"));
