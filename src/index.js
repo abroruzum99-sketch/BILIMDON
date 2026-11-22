@@ -4,6 +4,8 @@ async function db(e,t,q="",o={}){const r=await fetch(e.SUPABASE_URL+"/rest/v1/"+
 function escapeHtml(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 async function tg(e,m,b){const r=await fetch(TG+e.BOT_TOKEN+"/"+m,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result}
 async function quizImage(e,q){
+ // Rasm generatsiyasi bepul neurons limitini sarflaydi; faqat egasi aniq yoqqanda ishlaydi.
+ if(e.ENABLE_QUIZ_IMAGES!=="true")return null;
  const prompt="Create a high-quality photorealistic educational illustration for an Uzbek general-knowledge quiz. Visual topic only (do not reproduce these words): "+q.question_text+". Category: "+(q.category||"general")+". Show one clear visual scene or a few relevant physical objects as visual clues. Use a plain, uncluttered environment with blank surfaces. STRICT NEGATIVE RULE: the image must contain absolutely zero writing of any kind, including real or fake text, gibberish, letters, numbers, punctuation, symbols, captions, labels, logos, watermarks, signs, book pages, screens, maps with labels, license plates, or typography. Do not include books, documents, posters, packaging, storefronts, street signs, or visible screens. Do not depict the question or any answer option. Do not reveal the correct answer directly; use a neutral visual clue. No borders or graphic design. If the topic normally contains writing, represent it with physical objects instead. Make the image look like a real photograph, not a poster or infographic.";
  // Gemini image modeli faqat alohida sozlanganda ishlaydi: u pullik tarif talab qilishi mumkin.
  if(e.GEMINI_API_KEY&&e.GEMINI_IMAGE_MODEL){
@@ -169,13 +171,20 @@ const BUILTIN_QUESTIONS=[
 ["🧾 Davlat madhiyasi, bayrog'i va gerbi nimaning ramzlari?",["Sport klubi","Davlat","Maktab","Shahar transporti"],1,"Madhiya, bayroq va gerb davlatning rasmiy ramzlari hisoblanadi.","Umumiy bilim"]
 ];
 async function seedBuiltinQuestions(e){
- const existing=await db(e,"quizbot_questions","source=eq.builtin&select=id&limit=100");if(existing.length>=BUILTIN_QUESTIONS.length)return;
+ const existing=await db(e,"quizbot_questions","source=eq.builtin&select=id&limit=100");
+ if(existing.length>=BUILTIN_QUESTIONS.length)return existing.length;
+ const rows=[];
  for(const item of BUILTIN_QUESTIONS){
   const [question,options,index,explanation,category]=item,n=norm(question),digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
-  await db(e,"quizbot_questions","on_conflict=content_hash",{method:"POST",headers:{"Prefer":"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({question_text:question,normalized_text:n,answer_text:options[index],explanation,category,difficulty:"medium",options,content_hash:hash,status:"approved",source:"builtin"})});
+  rows.push({question_text:question,normalized_text:n,answer_text:options[index],explanation,category,difficulty:"medium",options,content_hash:hash,status:"approved",source:"builtin"});
  }
+ // Bitta bulk so'rov: 82 ta alohida DB chaqiruvining oldini oladi.
+ await db(e,"quizbot_questions","on_conflict=content_hash",{method:"POST",headers:{"Prefer":"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify(rows)});
+ return BUILTIN_QUESTIONS.length;
 }
 async function question(e,questionNumber=0){
+ // Tayyor savollar bankini AI'dan oldin to'ldiramiz; AI limiti bunga ta'sir qilmaydi.
+ await seedBuiltinQuestions(e);
  if(questionNumber>=19&&questionNumber<=25){
   const manual=await db(e,"quizbot_questions","source=eq.manual&status=eq.approved&select=*&order=content_hash.asc&limit=50");
   const prior=await db(e,"quizbot_schedule","select=question_id&limit=2000");
