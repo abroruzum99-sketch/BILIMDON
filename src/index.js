@@ -55,7 +55,7 @@ async function cron(e,now){
   if(sess&&sess.status==='active'){
    const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id&limit=1');
    if(!prior.length)try{
-    await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar bellashuv tugamaguncha oshkor qilinmaydi.'});
+    await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar bellashuv natijalari e’lon qilinguncha oshkor qilinmaydi.'});
     for(let i=1;i<=questionCount;i++){
      const q=await question(e);
      const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:start.toISOString(),status:'queued'})});
@@ -108,7 +108,7 @@ async function update(e,u){
    catch(err){console.error('Results menu error',err);}
    await tg(e,'sendMessage',{chat_id:uid,text:'📊 <b>SO‘NGGI NATIJALARIM</b>\n\n'+(rows.length?rows.map((x,i)=>(i+1)+'. ✅ '+x.correct_count+'/25  | 🏆 '+x.rank+'-o‘rin').join('\n'):'Hali yakunlangan bellashuv natijalari yo‘q. Birinchi bellashuvda qatnashing!'),parse_mode:'HTML'});
   }else if(p[1]==='rules'){
-   await tg(e,'sendMessage',{chat_id:uid,text:'📖 BELLASHUV QOIDALARI\n\n1️⃣ Har bir bellashuvda 25 ta savol beriladi.\n2️⃣ Javob berish vaqti — 1 soat.\n3️⃣ Har bir savolga faqat bir marta javob berish mumkin.\n4️⃣ Javobni o‘zgartirib bo‘lmaydi.\n5️⃣ To‘g‘ri javob — 1 ball.\n6️⃣ Javoblar bellashuv tugaguncha sir saqlanadi.\n7️⃣ Yakuniy natija va reyting shaxsiy xabarda yuboriladi.\n\n🤝 Halol bellashing va bilim bilan g‘alaba qozoning!'});
+   await tg(e,'sendMessage',{chat_id:uid,text:'📖 BELLASHUV QOIDALARI\n\n1️⃣ Har bir bellashuvda 25 ta savol beriladi.\n2️⃣ Javob berish vaqti — 1 soat.\n3️⃣ Har bir savolga faqat bir marta javob berish mumkin.\n4️⃣ Javobni o‘zgartirib bo‘lmaydi.\n5️⃣ To‘g‘ri javob — 1 ball.\n6️⃣ To‘g‘ri javoblar bellashuv natijalari e’lon qilinguncha oshkor qilinmaydi.\n7️⃣ Yakuniy natija va reyting shaxsiy xabarda yuboriladi.\n\n🤝 Halol bellashing va bilim bilan g‘alaba qozoning!'});
   }
   return;
  }
