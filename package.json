@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "scripts": {
     "deploy": "wrangler deploy",
-    "dev": "wrangler dev"
+    "deploy:preview": "wrangler deploy --config wrangler.preview.toml",
+    "dev": "wrangler dev",
+    "dev:preview": "wrangler dev --config wrangler.preview.toml"
   },
   "devDependencies": {
     "wrangler": "4.50.0"
