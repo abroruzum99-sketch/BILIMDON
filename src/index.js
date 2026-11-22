@@ -44,15 +44,27 @@ async function question(e,questionNumber=0){
  const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
  const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"],cat=cats[Math.floor(Math.random()*cats.length)];
  const prompt=`Sen professional o'zbek tilidagi intellektual Telegram shou muharririsan. Kategoriya: ${cat}. Oldingi savollarni takrorlama va ularga mazmunan juda o'xshash savol tuzma: ${JSON.stringify(old.map(x=>x.question_text))}. Kanal uchun odamni qiziqtiradigan, o'ylantiradigan, ravon va tabiiy savol yoz. Savol matnining boshiga mavzuga mos 1-2 emoji qo'sh (masalan 🧠 🤔 🌍 🔬 🏛️ 🚀 🐾 💡), emojilarni har safar almashtir; ortiqcha emoji bilan to'ldirma. Kirish jumlasini ham turlicha qil: "✨ BILIMDONLAR, DIQQAT!", "🤔 BUNI TOPA OLASIZMI?", "🔎 QIZIQARLI SAVOL!", "⚡ TEZKOR BELLASHUV!" kabi; bir xil sarlavhani ketma-ket ishlatma. Savol aniq, fakt jihatdan ishonchli va faqat bitta shubhasiz to'g'ri javobga ega bo'lsin. 4 ta qisqa, bir-biridan farqli variant tuz; noto'g'ri variantlar ham ishonarli bo'lsin. Siyosiy targ'ibot, noaniq afsona, tekshirib bo'lmaydigan statistika va ikki xil talqin qilinadigan savollardan qoch. question maydonida Telegram postiga tayyor, 2-5 qatordan iborat chiroyli matn bo'lsin; javobni oshkor qilma. explanation maydonida to'g'ri javob sababini 2-3 qiziqarli gapda tushuntir. Faqat JSON qaytar: {"question":"...","options":["...","...","...","..."],"answer":"to'g'ri variant matni","explanation":"...","category":"...","difficulty":"easy|medium|hard"}`;
- let raw="";
+ let raw="",cloudflareError=null;
  if(e.AI?.run){
-  const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Faqat so'ralgan JSON obyektini qaytar."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:700,temperature:.8});
-  raw=modelText(out);if(!raw)throw Error("Cloudflare AI javobi bo'sh");
- }else{
-  const u="https://generativelanguage.googleapis.com/v1beta/models/"+(e.GEMINI_MODEL||"gemini-3.8-flash")+":generateContent?key="+e.GEMINI_API_KEY;
-  const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8}})});
+  try{
+   const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Faqat so'ralgan JSON obyektini qaytar."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:700,temperature:.8});
+   raw=modelText(out);if(!raw)throw Error("Cloudflare AI javobi bo'sh");
+  }catch(err){
+   cloudflareError=err;
+   console.error("Cloudflare AI ishlamadi; Gemini zaxira rejimi tekshiriladi:",String(err&&err.message||err));
+  }
+ }
+ if(!raw){
+  if(!e.GEMINI_API_KEY){
+   if(cloudflareError)throw cloudflareError;
+   throw Error("GEMINI_API_KEY sozlanmagan");
+  }
+  const model=e.GEMINI_MODEL||"gemini-3.8-flash";
+  const u="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
+  const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8,maxOutputTokens:700}})});
   const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,350));
   raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
+  if(!raw)throw Error("Gemini javobi bo'sh");
  }
  let q=parseQuestion(raw);
  // AI ba'zan javobni variant harfi yoki raqami, ba'zan esa to'liq matn ko'rinishida qaytaradi.
