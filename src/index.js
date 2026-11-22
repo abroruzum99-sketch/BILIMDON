@@ -94,7 +94,8 @@ async function cron(e,now){
     for(let i=1;i<=questionCount;i++){
      if(postedThisRun>=5)break;
      const existing=prior.find(x=>Number(x.question_number)===i);
-     if(existing?.status==='posted')continue;
+     // Posted yoki yuborilayotgan savolni qayta jo'natmaymiz.
+     if(existing?.status==='posted'||existing?.status==='sending')continue;
      const q=existing?(await db(e,'quizbot_questions','id=eq.'+existing.question_id+'&select=*'))[0]:await question(e);
      let scheduleId=existing?.id;
      if(!existing){
@@ -104,15 +105,22 @@ async function cron(e,now){
      }
      const answerIndex=q.options.findIndex(x=>x===q.answer_text);
      if(answerIndex<0)throw Error('Poll uchun to‘g‘ri javob varianti topilmadi');
-     // Har uchinchi savolga rasmni alohida yuboramiz; javoblar Telegram Quiz Poll bo‘ladi.
-     if(i%3===1){
-      try{const bytes=await quizImage(e,q);if(bytes?.length)await tgPhoto(e,c.channel_username,'🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n🖼️ Savolga oid rasm',null,bytes);}
-      catch(imageErr){console.error('Quiz image failed; poll will be sent without image:',String(imageErr&&imageErr.message||imageErr));}
-     }
+     // Avval Quiz Poll yuboriladi; rasm xatosi pollni qayta yuborishga sabab bo'lmaydi.
+     await db(e,'quizbot_schedule','id=eq.'+scheduleId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'sending'})});
      const pollQuestion=Array.from(q.question_text).slice(0,300).join('');
      const pollExplanation=Array.from(String(q.explanation||'')).slice(0,200).join('');
-     const msg=await tg(e,'sendPoll',{chat_id:c.channel_username,question:pollQuestion,options:q.options,is_anonymous:false,type:'quiz',correct_option_ids:[answerIndex],explanation:pollExplanation,allows_multiple_answers:false,allows_revoting:false,close_date:Math.floor(end.getTime()/1000)});
+     let msg;
+     try{
+      msg=await tg(e,'sendPoll',{chat_id:c.channel_username,question:pollQuestion,options:q.options,is_anonymous:false,type:'quiz',correct_option_ids:[answerIndex],explanation:pollExplanation,allows_multiple_answers:false,allows_revoting:false,close_date:Math.floor(end.getTime()/1000)});
+     }catch(pollErr){
+      await db(e,'quizbot_schedule','id=eq.'+scheduleId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'queued'})});
+      throw pollErr;
+     }
      await db(e,'quizbot_schedule','id=eq.'+scheduleId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,telegram_poll_id:msg.poll.id,post_type:'poll'})});
+     if(i%3===1){
+      try{const bytes=await quizImage(e,q);if(bytes?.length)await tgPhoto(e,c.channel_username,'🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\\n\\n🖼️ Savolga oid rasm',null,bytes);}
+      catch(imageErr){console.error('Quiz image failed; poll already posted:',String(imageErr&&imageErr.message||imageErr));}
+     }
      await db(e,'quizbot_questions','id=eq.'+q.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',posted_at:now.toISOString()})});
      postedThisRun++;
     }
