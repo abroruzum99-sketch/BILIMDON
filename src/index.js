@@ -74,7 +74,7 @@ async function generateQuestionBatch(e,count=5){
   if(!q||typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4)throw Error("Batch savol formati noto'g'ri");
   const options=q.options.map(x=>typeof x==="string"?x:(x?.text??x?.value??"")).map(x=>String(x).trim());
   if(options.some(x=>!x||x.length>55)||new Set(options.map(norm)).size!==4)throw Error("Batch variantlari noto'g'ri");
-  const answer=String(q.answer??q.correct_answer??"").trim(),letter=answer.match(/^([ABCD])(?:[.)\\s:-]|$)/i),number=answer.match(/^([1-4])(?:[.)\\s:-]|$)/);
+  const answer=String(q.answer??q.correct_answer??"").trim(),letter=answer.match(/^([ABCD])(?:[.)\s:-]|$)/i),number=answer.match(/^([1-4])(?:[.)\s:-]|$)/);
   let idx=Number.isInteger(q.answer_index)?q.answer_index:letter?"ABCD".indexOf(letter[1].toUpperCase()):number?Number(number[1])-1:options.findIndex(x=>norm(x)===norm(answer));
   if(idx<0||idx>3)throw Error("Batch to'g'ri javobi variantlarga mos emas");
   const text=q.question.trim(),n=norm(text),digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
@@ -135,7 +135,38 @@ const BUILTIN_QUESTIONS=[
 ["📡 Wi-Fi texnologiyasi ma'lumotni asosan nima orqali uzatadi?",["Suv to'lqinlari","Radio to'lqinlari","Tovush","Yorug'lik tolasi"],1,"Wi-Fi qurilmalar o'rtasida ma'lumotni radio to'lqinlari yordamida simsiz uzatadi.","Texnologiya"],
 ["🧬 DNK molekulasining mashhur shakli qanday?",["Yagona halqa","Ikki spiral","To'g'ri chiziq","Uchburchak"],1,"DNK odatda bir-biriga o'ralgan ikki zanjirdan iborat qo'sh spiral tuzilishga ega.","Tabiiy fanlar"],
 ["🌧️ Bulutlarda suv tomchilari qanday hosil bo'ladi?",["Suv bug'ining kondensatsiyasidan","Tuzning erishidan","Muzning yonishidan","Shamolning sovishidan"],0,"Havodagi suv bug'i sovib, mayda tomchilar yoki muz kristallariga kondensatsiyalanadi.","Tabiiy fanlar"],
-["🗣️ Bir nechta tilni biladigan odam qanday ataladi?",["Monolingv","Bilingv faqat","Poliglot","Dialekt"],2,"Poliglot bir nechta tilni biladigan yoki ularda muloqot qila oladigan kishidir.","Til va adabiyot"]
+["🗣️ Bir nechta tilni biladigan odam qanday ataladi?",["Monolingv","Bilingv faqat","Poliglot","Dialekt"],2,"Poliglot bir nechta tilni biladigan yoki ularda muloqot qila oladigan kishidir.","Til va adabiyot"],
+["🪨 Olmosning kimyoviy tarkibi asosan qaysi elementdan iborat?",["Temir","Uglerod","Kremniy","Kalsiy"],1,"Olmos uglerod atomlaridan tashkil topgan bo'lib, atomlari mustahkam kristall panjara hosil qiladi.","Tabiiy fanlar"],
+["🌍 Yerning o'z o'qi atrofida bir marta aylanishi taxminan qancha vaqt oladi?",["12 soat","24 soat","30 kun","365 kun"],1,"Yerning o'z o'qi atrofidagi aylanishi sutka va kun-tun almashinuvini yuzaga keltiradi.","Geografiya"],
+["🧲 Magnitning bir xil qutblari bir-biriga qanday ta'sir qiladi?",["Tortishadi","Itarishadi","Ta'sirlashmaydi","Erib ketadi"],1,"Magnitning bir xil qutblari itarishadi, qarama-qarshi qutblari esa tortishadi.","Tabiiy fanlar"],
+["🧮 9 ning kubi nechaga teng?",["27","18","81","729"],3,"Sonning kubi uni uch marta ko'paytirishdir: 9 × 9 × 9 = 729.","Matematika"],
+["🧭 Xaritalarda shimol odatda qaysi tomonda joylashtiriladi?",["Pastda","Yuqorida","O'ngda","Chapda"],1,"Ko'pchilik an'anaviy xaritalarda shimol yuqori tomonda, janub esa pastda ko'rsatiladi.","Geografiya"],
+["🫁 Inson nafas olganda kislorod qonga asosan qayerda o'tadi?",["Bronxlarda","O'pka alveolalarida","Burun bo'shlig'ida","Kekirdakda"],1,"O'pka alveolalarining yupqa devorlari orqali kislorod qonga, karbonat angidrid esa havoga o'tadi.","Tabiiy fanlar"],
+["📖 'Boburnoma' asarining muallifi kim?",["Alisher Navoiy","Zahiriddin Muhammad Bobur","Amir Temur","Abdulla Qodiriy"],1,"'Boburnoma' Zahiriddin Muhammad Bobur tomonidan yozilgan tarixiy-memuar asardir.","Til va adabiyot"],
+["🏛️ Qadimgi Olimpiya o'yinlari qaysi mamlakatda boshlangan?",["Italiya","Yunoniston","Misr","Hindiston"],1,"Qadimgi Olimpiya o'yinlari Yunonistonning Olimpiya hududida o'tkazilgan.","Tarix"],
+["🌡️ Haroratni o'lchaydigan asbob nima?",["Barometr","Termometr","Ampermetr","Kompas"],1,"Termometr haroratni o'lchash uchun ishlatiladi.","Tabiiy fanlar"],
+["🔢 Rim raqamida X belgisi qaysi sonni bildiradi?",["5","10","50","100"],1,"Rim raqamlarida X belgisi 10 sonini anglatadi.","Umumiy bilim"],
+["🌋 Vulqon otilishida yer yuzasiga chiqadigan erigan tog' jinsi nima deyiladi?",["Magma","Lava","Granit","Ohaktosh"],1,"Yer ostidagi erigan jins magma deyiladi; u yer yuzasiga chiqqach lava deb ataladi.","Tabiiy fanlar"],
+["🌐 HTML asosan nima yaratish uchun ishlatiladi?",["Veb-sahifa tuzilmasi","Kompyuter protsessori","Internet kabeli","Antivirus bazasi"],0,"HTML veb-sahifaning mazmuni va tuzilmasini belgilash uchun ishlatiladigan belgilash tilidir.","Texnologiya"],
+["📐 Uchburchak ichki burchaklari yig'indisi necha gradus?",["90°","180°","270°","360°"],1,"Evklid geometriyasida har qanday uchburchak ichki burchaklari yig'indisi 180 gradusga teng.","Matematika"],
+["🪐 Saturn sayyorasining eng mashhur tashqi xususiyati nima?",["Katta halqalari","Ikki yo'ldoshi","Moviy okeanlari","Faol vulqonlari"],0,"Saturn muz va chang zarralaridan tashkil topgan keng halqalari bilan mashhur.","Tabiiy fanlar"],
+["🎭 Teatr asari uchun yozilgan adabiy matn qanday ataladi?",["Roman","Drama","Lug'at","Maqola"],1,"Drama sahnada ijro etish uchun yoziladigan adabiy asar turidir.","Til va adabiyot"],
+["🌳 Fotosintez asosan o'simlikning qaysi qismida sodir bo'ladi?",["Ildizida","Bargida","Gul changida","Urug'ida"],1,"Fotosintez asosan barg hujayralaridagi xloroplastlarda amalga oshadi.","Tabiiy fanlar"],
+["📡 Radioaloqa signallarni qaysi to'lqinlar orqali uzatadi?",["Tovush to'lqinlari","Radio to'lqinlari","Suv to'lqinlari","Seysmik to'lqinlar"],1,"Radioaloqa elektromagnit spektrining radio to'lqinlari yordamida axborot uzatadi.","Texnologiya"],
+["🏞️ Daryo boshlanadigan joy nima deb ataladi?",["Quyilish joyi","Manba","Delta","O'zan"],1,"Daryoning boshlanish nuqtasi manba deyiladi; u buloq, ko'l yoki muzlik bo'lishi mumkin.","Geografiya"],
+["🧪 pH qiymati 7 bo'lgan sof suv qanday muhitga ega?",["Kislotali","Ishqoriy","Neytral","Radioaktiv"],2,"25 °C atrofida sof suvning pH qiymati 7 bo'lib, u neytral muhit hisoblanadi.","Tabiiy fanlar"],
+["📚 'Alpomish' qanday xalq og'zaki ijodi janriga mansub?",["Maqol","Doston","Topishmoq","Ertak"],1,"'Alpomish' o'zbek xalqining mashhur qahramonlik dostoni hisoblanadi.","Til va adabiyot"],
+["🧮 1 kilometr necha metrga teng?",["10","100","1000","10000"],2,"Bir kilometr 1000 metrga teng.","Matematika"],
+["🦒 Quruqlikdagi eng baland hayvon qaysi?",["Fil","Jirafa","Tuya","Tuyaqush"],1,"Jirafa uzun bo'yni va oyoqlari tufayli quruqlikdagi eng baland hayvon hisoblanadi.","Tabiiy fanlar"],
+["🌍 Yer atmosferasida eng ko'p uchraydigan gaz qaysi?",["Kislorod","Azot","Karbonat angidrid","Argon"],1,"Yer atmosferasining taxminan 78 foizini azot tashkil etadi.","Tabiiy fanlar"],
+["🏰 Buyuk Xitoy devori qaysi mamlakatda joylashgan?",["Yaponiya","Xitoy","Mo'g'uliston","Koreya"],1,"Buyuk Xitoy devori Xitoy hududida qurilgan tarixiy mudofaa inshootlari majmuasidir.","Tarix"],
+["💡 Lampochkaning elektr energiyasini asosan nimaga aylantiradi?",["Faqat tovushga","Yorug'lik va issiqlikka","Faqat mexanik energiyaga","Kimyoviy energiyaga"],1,"Elektr lampochkasi elektr energiyasini yorug'lik va issiqlik energiyasiga aylantiradi.","Texnologiya"],
+["🧬 Qonning qizil rangiga asosan qaysi modda sabab bo'ladi?",["Xlorofill","Gemoglobin","Insulin","Keratin"],1,"Qizil qon hujayralaridagi gemoglobin tarkibidagi temir qonning qizil rangini beradi.","Tabiiy fanlar"],
+["🕰️ Bir sutkada necha soat bor?",["12","18","24","36"],2,"Bir sutka 24 soatdan iborat.","Umumiy bilim"],
+["🌊 Suvning muzlash harorati normal bosimda necha °C?",["0","10","50","100"],0,"Normal atmosfera bosimida toza suv 0 °C da muzlaydi.","Tabiiy fanlar"],
+["🏙️ Eyfel minorasi qaysi shaharda joylashgan?",["London","Parij","Rim","Madrid"],1,"Eyfel minorasi Fransiya poytaxti Parijning mashhur ramzlaridan biridir.","Geografiya"],
+["🧠 Mantiqiy ketma-ketlik: 2, 4, 8, 16, ... Keyingi son qaysi?",["18","24","32","36"],2,"Har bir had avvalgisidan ikki baravar katta: 16 × 2 = 32.","Mantiq"],
+["🧾 Davlat madhiyasi, bayrog'i va gerbi nimaning ramzlari?",["Sport klubi","Davlat","Maktab","Shahar transporti"],1,"Madhiya, bayroq va gerb davlatning rasmiy ramzlari hisoblanadi.","Umumiy bilim"]
 ];
 async function seedBuiltinQuestions(e){
  const existing=await db(e,"quizbot_questions","source=eq.builtin&select=id&limit=100");if(existing.length>=BUILTIN_QUESTIONS.length)return;
@@ -170,7 +201,7 @@ async function cron(e,now){
  // Har ikki sessiya boshlanishidan keyingi 20 daqiqa ichida qayta urinish mumkin.
  const kind=hh===12&&mm<20?'afternoon':hh===19&&mm<20?'evening':null;
  if(kind){
-  const start=new Date(day+'T'+(kind==='afternoon'?'12:00:00':'19:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=25,sessionTitle=kind==='afternoon'?'TUSHLKGI':'KECHKI';
+  const start=new Date(day+'T'+(kind==='afternoon'?'12:00:00':'19:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=25,sessionTitle=kind==='afternoon'?'TUSHLIK':'KECHKI';
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
   if(!sess)sess=(await db(e,'quizbot_sessions','session_date=eq.'+day+'&session_type=eq.'+kind+'&select=*'))[0];
   if(sess&&sess.status==='failed'){
