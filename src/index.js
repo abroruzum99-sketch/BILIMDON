@@ -112,7 +112,6 @@ const BUILTIN_QUESTIONS=[
 ["🏛️ BMT qaysi yilda tashkil etilgan?",["1919","1945","1955","1961"],1,"Birlashgan Millatlar Tashkiloti 1945-yil 24-oktabrda rasman tashkil topgan.","Tarix"]
 ];
 async function seedBuiltinQuestions(e){
- const existing=await db(e,"quizbot_questions","source=eq.builtin&select=id&limit=1");if(existing.length)return;
  for(const item of BUILTIN_QUESTIONS){
   const [question,options,index,explanation,category]=item,n=norm(question),digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
   await db(e,"quizbot_questions","on_conflict=content_hash",{method:"POST",headers:{"Prefer":"resolution=ignore-duplicates,return=minimal"},body:JSON.stringify({question_text:question,normalized_text:n,answer_text:options[index],explanation,category,difficulty:"medium",options,content_hash:hash,status:"approved",source:"builtin"})});
@@ -120,8 +119,11 @@ async function seedBuiltinQuestions(e){
 }
 async function question(e,questionNumber=0){
  if(questionNumber>=19&&questionNumber<=25){
-  const manual=await db(e,"quizbot_questions","source=eq.manual&select=*&order=content_hash.asc&offset="+(questionNumber-19)+"&limit=1");
-  if(manual.length)return manual[0];
+  const manual=await db(e,"quizbot_questions","source=eq.manual&select=*&order=content_hash.asc&limit=50");
+  const prior=await db(e,"quizbot_schedule","select=question_id&limit=2000");
+  const usedManual=new Set(prior.map(x=>String(x.question_id)));
+  const freshManual=manual.find(x=>!usedManual.has(String(x.id)));
+  if(freshManual)return freshManual;
  }
  const pool=async()=>await db(e,"quizbot_questions","source=in.(gemini_batch,builtin)&status=eq.approved&select=*&order=created_at.asc&limit=100");
  const scheduled=await db(e,"quizbot_schedule","select=question_id&limit=2000");
