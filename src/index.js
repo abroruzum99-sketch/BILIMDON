@@ -4,17 +4,29 @@ async function db(e,t,q="",o={}){const r=await fetch(e.SUPABASE_URL+"/rest/v1/"+
 function escapeHtml(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 async function tg(e,m,b){const r=await fetch(TG+e.BOT_TOKEN+"/"+m,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result}
 async function quizImage(e,q){
- if(!e.AI?.run)return null;
  const prompt="Create a high-quality photorealistic educational illustration for an Uzbek general-knowledge quiz. Visual topic only (do not reproduce these words): "+q.question_text+". Category: "+(q.category||"general")+". Show one clear visual scene or a few relevant physical objects as visual clues. Use a plain, uncluttered environment with blank surfaces. STRICT NEGATIVE RULE: the image must contain absolutely zero writing of any kind, including real or fake text, gibberish, letters, numbers, punctuation, symbols, captions, labels, logos, watermarks, signs, book pages, screens, maps with labels, license plates, or typography. Do not include books, documents, posters, packaging, storefronts, street signs, or visible screens. Do not depict the question or any answer option. Do not reveal the correct answer directly; use a neutral visual clue. No borders or graphic design. If the topic normally contains writing, represent it with physical objects instead. Make the image look like a real photograph, not a poster or infographic.";
+ // Gemini image modeli faqat alohida sozlanganda ishlaydi: u pullik tarif talab qilishi mumkin.
+ if(e.GEMINI_API_KEY&&e.GEMINI_IMAGE_MODEL){
+  const model=e.GEMINI_IMAGE_MODEL,u="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
+  const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseModalities:["IMAGE"],imageConfig:{aspectRatio:"4:3",imageSize:"1K"}}})});
+  const j=await r.json();if(!r.ok)throw Error("Gemini image "+JSON.stringify(j).slice(0,350));
+  for(const part of j.candidates?.[0]?.content?.parts||[]){
+   const data=part.inlineData||part.inline_data;
+   if(data?.data){const raw=atob(data.data);return {bytes:Uint8Array.from(raw,x=>x.charCodeAt(0)),mimeType:data.mimeType||data.mime_type||"image/png"}}
+  }
+  throw Error("Gemini image javobida rasm topilmadi");
+ }
+ // Agar alohida Gemini image modeli sozlanmagan bo'lsa, Cloudflare image generatori sinab ko'riladi.
+ if(!e.AI?.run)return null;
  const out=await e.AI.run("@cf/black-forest-labs/flux-1-schnell",{prompt});
- if(out instanceof ArrayBuffer)return new Uint8Array(out);
- if(out instanceof Uint8Array)return out;
- if(out?.image instanceof Uint8Array)return out.image;
- if(typeof out?.image==="string"){const raw=atob(out.image);return Uint8Array.from(raw,c=>c.charCodeAt(0))}
+ if(out instanceof ArrayBuffer)return {bytes:new Uint8Array(out),mimeType:"image/png"};
+ if(out instanceof Uint8Array)return {bytes:out,mimeType:"image/png"};
+ if(out?.image instanceof Uint8Array)return {bytes:out.image,mimeType:"image/png"};
+ if(typeof out?.image==="string"){const raw=atob(out.image);return {bytes:Uint8Array.from(raw,x=>x.charCodeAt(0)),mimeType:"image/png"}}
  return null;
 }
-async function tgPhoto(e,chatId,caption,keyboard,bytes){
- const form=new FormData();form.append("chat_id",String(chatId));form.append("caption",caption);if(keyboard)form.append("reply_markup",JSON.stringify(keyboard));form.append("photo",new Blob([bytes],{type:"image/png"}),"quiz.png");
+async function tgPhoto(e,chatId,caption,keyboard,image){
+ const form=new FormData();form.append("chat_id",String(chatId));form.append("caption",caption);if(keyboard)form.append("reply_markup",JSON.stringify(keyboard));form.append("photo",new Blob([image.bytes],{type:image.mimeType||"image/png"}),image.mimeType==="image/jpeg"?"quiz.jpg":"quiz.png");
  const r=await fetch(TG+e.BOT_TOKEN+"/sendPhoto",{method:"POST",body:form});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result
 }
 const localDay=d=>{const x=new Date(d.getTime()+300000*60);return x.toISOString().slice(0,10)};
@@ -137,7 +149,7 @@ async function cron(e,now){
      }
      await db(e,'quizbot_schedule','id=eq.'+scheduleId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,telegram_poll_id:msg.poll.id,post_type:'poll'})});
      if(i%3===0){
-      try{const bytes=await quizImage(e,q);if(bytes?.length)await tgPhoto(e,c.channel_username,'🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n🖼️ Savolga oid rasm',null,bytes);}
+      try{const image=await quizImage(e,q);if(image?.bytes?.length)await tgPhoto(e,c.channel_username,'🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n🖼️ Savolga oid rasm',null,image);}
       catch(imageErr){console.error('Quiz image failed; poll already posted:',String(imageErr&&imageErr.message||imageErr));}
      }
      await db(e,'quizbot_questions','id=eq.'+q.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',posted_at:now.toISOString()})});
