@@ -54,7 +54,7 @@ async function question(e){
  if(!Array.isArray(q.options)&&q.options&&typeof q.options==="object")q.options=["A","B","C","D"].map(k=>q.options[k]??q.options[k.toLowerCase()]);
  if(Array.isArray(q.options))q.options=q.options.map(x=>typeof x==="string"?x:(x?.text??x?.value??x?.option??""));
  const answerRaw=q.answer??q.correct_answer??q.correct??q.correctAnswer??q.correct_option??q.correctOption??"";
- if(typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim())||new Set(q.options.map(x=>norm(x))).size!==4){
+ if(typeof q.question!=="string"||!q.question.trim()||q.question.length>3000||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim()||x.length>55)||new Set(q.options.map(x=>norm(x))).size!==4){
   console.error("AI question validation failed; raw:",String(raw).slice(0,1400));
   throw Error("AI savol formati xato: savol yoki 4 ta variant noto'g'ri");
  }
@@ -120,14 +120,18 @@ async function cron(e,now){
  }
  const due=await db(e,'quizbot_sessions','status=eq.active&ends_at=lte.'+encodeURIComponent(now.toISOString())+'&select=*');
  for(const s of due){
-  const sched=await db(e,'quizbot_schedule','session_id=eq.'+s.id+'&select=question_id,question_number');
+  const sched=await db(e,'quizbot_schedule','session_id=eq.'+s.id+'&select=question_id,question_number,revealed_at');
   const ids=sched.map(x=>x.question_id);if(!ids.length)continue;
   const ans=await db(e,'quizbot_answers','question_id=in.('+ids.join(',')+')&select=question_id,telegram_user_id,is_correct');
   const subs=await db(e,'quizbot_subscribers','select=telegram_user_id,username,first_name,score&order=score.desc&limit=1000');
   const participantIds=new Set(ans.map(x=>String(x.telegram_user_id)));const totals=subs.filter(u=>participantIds.has(String(u.telegram_user_id))).map(u=>{const mine=ans.filter(x=>String(x.telegram_user_id)===String(u.telegram_user_id));return {...u,correct:mine.filter(x=>x.is_correct).length,wrong:mine.filter(x=>!x.is_correct).length,unanswered:sched.length-mine.length};}).sort((x,y)=>y.correct-x.correct||x.wrong-y.wrong);
   for(let i=0;i<totals.length;i++){const u=totals[i];await db(e,'quizbot_session_results','on_conflict=session_id,telegram_user_id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({session_id:s.id,telegram_user_id:u.telegram_user_id,correct_count:u.correct,wrong_count:u.wrong,unanswered_count:u.unanswered,rank:i+1})});try{await tg(e,'sendMessage',{chat_id:u.telegram_user_id,text:'🏆 BILIMDON — NATIJA\n\n✅ To‘g‘ri: '+u.correct+'/'+sched.length+'\n❌ Noto‘g‘ri: '+u.wrong+'\n⌛ Javobsiz: '+u.unanswered+'\n📊 Reyting: '+(i+1)+'/'+totals.length+'\n\nKeyingi bellashuvda omad!'});}catch(err){console.error('Result DM',u.telegram_user_id,err)}}
+  let answerText='📚 TO‘G‘RI JAVOBLAR VA IZOHLAR\n\n';
+  for(const r of sched){const q=(await db(e,'quizbot_questions','id=eq.'+r.question_id+'&select=answer_text,explanation'))[0];if(q)answerText+=r.question_number+'. '+q.answer_text+' — '+q.explanation+'\n\n';}
+  const chunks=[];let chunk='';for(const part of answerText.split('\n\n')){const next=chunk?(chunk+'\n\n'+part):part;if(next.length>3900&&chunk){chunks.push(chunk);chunk=part;}else chunk=next;}if(chunk)chunks.push(chunk);
+  if(!sched.every(r=>r.revealed_at)){for(const part of chunks)await tg(e,'sendMessage',{chat_id:c.channel_username,text:part});await db(e,'quizbot_schedule','session_id=eq.'+s.id+'&revealed_at=is.null',{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({revealed_at:now.toISOString()})});}
   const participants=[...new Set(ans.map(x=>String(x.telegram_user_id)))];
-  for(const uid of participants){let text='📚 TO‘G‘RI JAVOBLAR VA IZOHLAR\n\n';for(const r of sched){const q=(await db(e,'quizbot_questions','id=eq.'+r.question_id+'&select=answer_text,explanation'))[0];if(q)text+=r.question_number+'. '+q.answer_text+' — '+q.explanation+'\n\n';}try{await tg(e,'sendMessage',{chat_id:Number(uid),text:text.slice(0,3900)});}catch(err){console.error('Answers DM',uid,err)}}
+  for(const uid of participants){for(const part of chunks){try{await tg(e,'sendMessage',{chat_id:Number(uid),text:part});}catch(err){console.error('Answers DM',uid,err);break;}}}
   await db(e,'quizbot_sessions','id=eq.'+s.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'finished',finished_at:now.toISOString()})});
  }
  // Send reminders every two hours only to users who previously started the bot.
