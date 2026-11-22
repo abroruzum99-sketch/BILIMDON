@@ -57,7 +57,7 @@ async function question(e){
   console.error("AI question validation failed; raw:",String(raw).slice(0,1400));
   throw Error("AI savol formati xato: savol yoki 4 ta variant noto'g'ri");
  }
- const answerKey=String(answerRaw).trim(),letter=answerKey.match(/^([ABCD])(?:[.)\\s:-]|$)/i),number=answerKey.match(/^([1-4])(?:[.)\\s:-]|$)/);
+ const answerKey=String(answerRaw).trim(),letter=answerKey.match(/^([ABCD])(?:[.)\s:-]|$)/i),number=answerKey.match(/^([1-4])(?:[.)\s:-]|$)/);
  let answerIndex=Number.isInteger(q.answer_index)?q.answer_index:Number.isInteger(q.correct_option_index)?q.correct_option_index:-1;
  if(answerIndex<0||answerIndex>3)answerIndex=letter?"ABCD".indexOf(letter[1].toUpperCase()):number?Number(number[1])-1:-1;
  if(answerIndex<0)answerIndex=q.options.findIndex(x=>norm(x)===norm(answerKey));
@@ -89,7 +89,7 @@ async function cron(e,now){
   if(sess&&sess.status==='active'){
    const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id,question_id,question_number,status,telegram_message_id');
    if(prior.length<questionCount)try{
-    if(!prior.length)await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\\n\\n🧠 '+questionCount+' ta yangi savol!\\n⏰ Javob berish uchun 1 soat vaqt.\\n🔒 To‘g‘ri javoblar natijalar e’lon qilinmaguncha oshkor qilinmaydi.'});
+    if(!prior.length)await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar natijalar e’lon qilinmaguncha oshkor qilinmaydi.'});
     for(let i=1;i<=questionCount;i++){
      const existing=prior.find(x=>Number(x.question_number)===i);
      if(existing?.status==='posted')continue;
@@ -101,7 +101,7 @@ async function cron(e,now){
       scheduleId=rows[0].id;
      }
      const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'🔹 '+'ABCD'[j]+'. '+v,callback_data:'ans:'+q.id+':'+j}])};
-     const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\\n\\n'+q.question_text+'\\n\\n🎯 JAVOBNI TANLANG';
+     const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
      let msg;
      // Taxminan har uchinchi savol rasmli; qolganlari matn ko‘rinishida.
      if(i%3===1){
