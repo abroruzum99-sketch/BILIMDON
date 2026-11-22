@@ -36,7 +36,7 @@ async function rest(env, table, query, method = "GET") {
 
 async function countRows(env, table) {
   const url = new URL("/rest/v1/" + table, env.SUPABASE_URL);
-  url.search = "select=id";
+  url.search = "select=*";
   const response = await fetch(url, {
     method: "HEAD",
     headers: {
