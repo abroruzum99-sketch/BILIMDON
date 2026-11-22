@@ -5,7 +5,7 @@ function escapeHtml(s){return String(s??"").replace(/&/g,"&amp;").replace(/</g,"
 async function tg(e,m,b){const r=await fetch(TG+e.BOT_TOKEN+"/"+m,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result}
 async function quizImage(e,q){
  if(!e.AI?.run)return null;
- const prompt="Create a clean, attractive educational illustration for a general-audience intellectual quiz. Topic for visual inspiration only: "+q.question_text+". Category: "+(q.category||"general")+". Show only the objects, people, places, or visual clues related to the topic. ABSOLUTELY NO TEXT anywhere in the image: no words, no letters, no numbers, no symbols, no captions, no labels, no signs, no logos, no watermarks, no typography, and no answer choices. Do not write or reproduce the question. Do not draw anything that looks like writing. Use a simple realistic or polished illustrative scene with clear visual composition. Never reveal the correct answer.";
+ const prompt="Create a high-quality photorealistic educational illustration for an Uzbek general-knowledge quiz. Visual topic only (do not reproduce these words): "+q.question_text+". Category: "+(q.category||"general")+". Show one clear visual scene or a few relevant physical objects as visual clues. Use a plain, uncluttered environment with blank surfaces. STRICT NEGATIVE RULE: the image must contain absolutely zero writing of any kind, including real or fake text, gibberish, letters, numbers, punctuation, symbols, captions, labels, logos, watermarks, signs, book pages, screens, maps with labels, license plates, or typography. Do not include books, documents, posters, packaging, storefronts, street signs, or visible screens. Do not depict the question or any answer option. Do not reveal the correct answer directly; use a neutral visual clue. No borders or graphic design. If the topic normally contains writing, represent it with physical objects instead. Make the image look like a real photograph, not a poster or infographic.";
  const out=await e.AI.run("@cf/black-forest-labs/flux-1-schnell",{prompt});
  if(out instanceof ArrayBuffer)return new Uint8Array(out);
  if(out instanceof Uint8Array)return out;
@@ -102,7 +102,7 @@ async function cron(e,now){
       const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:scheduledAt,status:'queued'})});
       scheduleId=rows[0].id;
      }
-     const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'ABCD'[j]+') '+v,callback_data:'ans:'+q.id+':'+j}])};
+     const keyboard={inline_keyboard:[[0,1],[2,3]].map(pair=>pair.map(j=>({text:'ABCD'[j]+') '+q.options[j],callback_data:'ans:'+q.id+':'+j}))};
      const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
      let msg;
      // Taxminan har uchinchi savol rasmli; qolganlari matn ko‘rinishida.
