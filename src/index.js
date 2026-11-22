@@ -2,6 +2,20 @@ const TG = "https://api.telegram.org/bot";
 const h = e => ({apikey:e.SUPABASE_SERVICE_ROLE_KEY,"Content-Type":"application/json"});
 async function db(e,t,q="",o={}){const r=await fetch(e.SUPABASE_URL+"/rest/v1/"+t+(q?"?"+q:""),{...o,headers:{...h(e),...(o.headers||{})}});const s=await r.text();if(!r.ok)throw Error(t+" "+r.status+" "+s.slice(0,400));return s?JSON.parse(s):[]}
 async function tg(e,m,b){const r=await fetch(TG+e.BOT_TOKEN+"/"+m,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(b)});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result}
+async function quizImage(e,q){
+ if(!e.AI?.run)return null;
+ const prompt="Create a clean educational quiz illustration for this question: "+q.question_text+". Category: "+(q.category||"general")+". Show visual clues only. Do not include words, letters, numbers, labels, answer choices, or reveal the correct answer. Clear simple composition for a general-audience intellectual quiz.";
+ const out=await e.AI.run("@cf/black-forest-labs/flux-1-schnell",{prompt});
+ if(out instanceof ArrayBuffer)return new Uint8Array(out);
+ if(out instanceof Uint8Array)return out;
+ if(out?.image instanceof Uint8Array)return out.image;
+ if(typeof out?.image==="string"){const raw=atob(out.image);return Uint8Array.from(raw,c=>c.charCodeAt(0))}
+ return null;
+}
+async function tgPhoto(e,chatId,caption,keyboard,bytes){
+ const form=new FormData();form.append("chat_id",String(chatId));form.append("caption",caption);form.append("reply_markup",JSON.stringify(keyboard));form.append("photo",new Blob([bytes],{type:"image/jpeg"}),"quiz.jpg");
+ const r=await fetch(TG+e.BOT_TOKEN+"/sendPhoto",{method:"POST",body:form});const j=await r.json();if(!j.ok)throw Error("Telegram "+j.description);return j.result
+}
 const localDay=d=>{const x=new Date(d.getTime()+300000*60);return x.toISOString().slice(0,10)};
 const norm=s=>String(s||"").toLocaleLowerCase("uz").replace(/[^\p{L}\p{N}]+/gu," ").trim();
 function modelText(v){
@@ -66,7 +80,13 @@ async function cron(e,now){
      const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:start.toISOString(),status:'queued'})});
      const keyboard={inline_keyboard:q.options.map((v,j)=>[{text:'🔹 '+'ABCD'[j]+'. '+v,callback_data:'ans:'+q.id+':'+j}])};
      const text='🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n'+q.question_text+'\n\n🎯 JAVOBNI TANLANG';
-     const msg=await tg(e,'sendMessage',{chat_id:c.channel_username,text,reply_markup:keyboard});
+     let msg;
+     // Taxminan har uchinchi savol rasmli; qolganlari matn ko‘rinishida.
+     if(i%3===1){
+      try{const bytes=await quizImage(e,q);if(bytes?.length)msg=await tgPhoto(e,c.channel_username,text.slice(0,1000),keyboard,bytes);}
+      catch(imageErr){console.error('Quiz image failed; sending text instead:',String(imageErr&&imageErr.message||imageErr));}
+     }
+     if(!msg)msg=await tg(e,'sendMessage',{chat_id:c.channel_username,text,reply_markup:keyboard});
      await db(e,'quizbot_schedule','id=eq.'+rows[0].id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,post_type:'inline'})});
      await db(e,'quizbot_questions','id=eq.'+q.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',posted_at:now.toISOString()})});
     }
