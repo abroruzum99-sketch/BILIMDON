@@ -89,7 +89,7 @@ async function cron(e,now){
   if(sess&&sess.status==='active'){
    const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id,question_id,question_number,status,telegram_message_id');
    if(prior.length<questionCount)try{
-    if(!prior.length)await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n🔒 To‘g‘ri javoblar natijalar e’lon qilinmaguncha oshkor qilinmaydi.'});
+    if(!prior.length)await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n⚡ Har bir javobdan so‘ng natija darhol ko‘rsatiladi.'});
     for(let i=1;i<=questionCount;i++){
      const existing=prior.find(x=>Number(x.question_number)===i);
      if(existing?.status==='posted')continue;
@@ -155,7 +155,7 @@ async function update(e,u){
    catch(err){console.error('Results menu error',err);}
    await tg(e,'sendMessage',{chat_id:uid,text:'📊 <b>SO‘NGGI NATIJALARIM</b>\n\n'+(rows.length?rows.map((x,i)=>(i+1)+'. ✅ '+x.correct_count+'/25  | 🏆 '+x.rank+'-o‘rin').join('\n'):'Hali yakunlangan bellashuv natijalari yo‘q. Birinchi bellashuvda qatnashing!'),parse_mode:'HTML'});
   }else if(p[1]==='rules'){
-   await tg(e,'sendMessage',{chat_id:uid,text:'📖 BELLASHUV QOIDALARI\n\n1️⃣ Har bir bellashuvda 25 ta savol beriladi.\n2️⃣ Javob berish vaqti — 1 soat.\n3️⃣ Har bir savolga faqat bir marta javob berish mumkin.\n4️⃣ Javobni o‘zgartirib bo‘lmaydi.\n5️⃣ To‘g‘ri javob — 1 ball.\n6️⃣ To‘g‘ri javoblar bellashuv natijalari e’lon qilinguncha oshkor qilinmaydi.\n7️⃣ Yakuniy natija va reyting shaxsiy xabarda yuboriladi.\n\n🤝 Halol bellashing va bilim bilan g‘alaba qozoning!'});
+   await tg(e,'sendMessage',{chat_id:uid,text:'📖 BELLASHUV QOIDALARI\n\n1️⃣ Har bir bellashuvda 25 ta savol beriladi.\n2️⃣ Javob berish vaqti — 1 soat.\n3️⃣ Har bir savolga faqat bir marta javob berish mumkin.\n4️⃣ Javobni o‘zgartirib bo‘lmaydi.\n5️⃣ To‘g‘ri javob — 1 ball.\n6️⃣ Javobni tanlaganingiz zahoti to‘g‘ri yoki noto‘g‘ri ekanini bilasiz.\n7️⃣ Yakuniy natija va reyting shaxsiy xabarda yuboriladi.\n\n🤝 Halol bellashing va bilim bilan g‘alaba qozoning!'});
   }
   return;
  }
@@ -165,7 +165,7 @@ async function update(e,u){
  const v=c.from,ok=q.options[i]===q.answer_text,ins=await db(e,'quizbot_answers','on_conflict=question_id,telegram_user_id',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({question_id:q.id,telegram_user_id:v.id,answer_text:q.options[i],is_correct:ok})});
  if(!ins.length){await tg(e,'answerCallbackQuery',{callback_query_id:c.id,text:'Bu savolga avval javob bergansiz.',show_alert:true});return;}
  await db(e,'quizbot_subscribers','on_conflict=telegram_user_id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({telegram_user_id:v.id,username:v.username||null,first_name:v.first_name||null,last_seen_at:new Date().toISOString()})});
- await tg(e,'answerCallbackQuery',{callback_query_id:c.id,text:'Javobingiz qabul qilindi! Natija 1 soatdan keyin yuboriladi.',show_alert:true});
+ const feedback=ok?'✅ To‘g‘ri javob! +1 ball.':'❌ Noto‘g‘ri javob. To‘g‘ri javob: '+q.answer_text;await tg(e,'answerCallbackQuery',{callback_query_id:c.id,text:feedback.slice(0,190),show_alert:true});
  }
 }
 export default {
