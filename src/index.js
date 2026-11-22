@@ -47,62 +47,60 @@ function parseQuestion(raw){
  return JSON.parse(s.slice(a,b+1));
 }
 const categoryEmoji={"Mantiq":"🧩","Matematika":"🔢","Tabiiy fanlar":"🔬","Tarix":"🏛️","Geografiya":"🌍","Til va adabiyot":"📚","Texnologiya":"💻","Umumiy bilim":"🌟"};
+async function generateQuestionBatch(e,count=5){
+ const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=100");
+ const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"];
+ const prompt=`Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Bir-biridan farqli, fakt jihatdan ishonchli va qiziqarli ${count} ta yangi savol yarat. Oldingi savollarni takrorlama: ${JSON.stringify(old.map(x=>x.question_text))}. Kategoriyalarni aralashtir: ${cats.join(", ")}. Har savolga 4 ta qisqa va farqli variant, faqat bitta shubhasiz to'g'ri javob, 2-3 gapli izoh ber. Savol matni ravon o'zbek tilida, Telegramga tayyor bo'lsin; boshida mavzuga mos 1-2 emoji bo'lsin. Variantlar 55 belgidan oshmasin. Javob maydonida to'g'ri variantning aynan to'liq matnini yoz. Har bir obyekt shakli: {"question":"...","options":["...","...","...","..."],"answer":"variant matni","explanation":"...","category":"...","difficulty":"easy|medium|hard"}. Faqat JSON qaytar: {"questions":[...]}.`;
+ let raw="",geminiError=null,cloudflareError=null;
+ if(e.GEMINI_API_KEY){
+  try{
+   const model=e.GEMINI_MODEL||"gemini-3.8-flash",u="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
+   const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",maxOutputTokens:8192,thinkingConfig:{thinkingLevel:"LOW"}}})});
+   const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,500));
+   raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";if(!raw)throw Error("Gemini batch javobi bo'sh");
+  }catch(err){geminiError=err;console.error("Gemini batch xatosi:",String(err?.message||err));}
+ }
+ if(!raw&&e.AI?.run){
+  try{
+   const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Faqat JSON formatda savollar massivini qaytaradigan o'zbek viktorina muharririsan."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:8192});
+   raw=modelText(out);if(!raw)throw Error("Cloudflare AI batch javobi bo'sh");
+  }catch(err){cloudflareError=err;console.error("Cloudflare batch fallback xatosi:",String(err?.message||err));}
+ }
+ if(!raw)throw Error("5 talik savol paketi yaratilmadi. Gemini: "+String(geminiError?.message||"kalit yo'q")+"; Cloudflare AI: "+String(cloudflareError?.message||"mavjud emas"));
+ const parsed=parseQuestion(raw),items=Array.isArray(parsed)?parsed:parsed.questions;
+ if(!Array.isArray(items)||items.length<count)throw Error("AI batch javobida "+count+" ta savol yo'q");
+ const rows=[];
+ for(const q of items.slice(0,count)){
+  if(!q||typeof q.question!=="string"||!q.question.trim()||!Array.isArray(q.options)||q.options.length!==4)throw Error("Batch savol formati noto'g'ri");
+  const options=q.options.map(x=>typeof x==="string"?x:(x?.text??x?.value??"")).map(x=>String(x).trim());
+  if(options.some(x=>!x||x.length>55)||new Set(options.map(norm)).size!==4)throw Error("Batch variantlari noto'g'ri");
+  const answer=String(q.answer??q.correct_answer??"").trim(),letter=answer.match(/^([ABCD])(?:[.)\\s:-]|$)/i),number=answer.match(/^([1-4])(?:[.)\\s:-]|$)/);
+  let idx=Number.isInteger(q.answer_index)?q.answer_index:letter?"ABCD".indexOf(letter[1].toUpperCase()):number?Number(number[1])-1:options.findIndex(x=>norm(x)===norm(answer));
+  if(idx<0||idx>3)throw Error("Batch to'g'ri javobi variantlarga mos emas");
+  const text=q.question.trim(),n=norm(text),digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
+  const inserted=await db(e,"quizbot_questions","on_conflict=content_hash",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({question_text:text,normalized_text:n,answer_text:options[idx],explanation:String(q.explanation||""),category:String(q.category||"Umumiy bilim"),difficulty:["easy","medium","hard"].includes(q.difficulty)?q.difficulty:"medium",options,content_hash:hash,status:"approved",source:"gemini_batch"})});
+  if(inserted.length)rows.push(inserted[0]);
+ }
+ if(rows.length<count)throw Error("Batchdan faqat "+rows.length+"/"+count+" ta yangi savol saqlandi (takroriy savollar chiqarib tashlandi)");
+ return rows;
+}
 async function question(e,questionNumber=0){
- // Qo'lda tayyorlangan 19–25-savollar faqat o'z raqamlarida ishlatiladi.
+ // Oldindan tayyorlangan savollar mavjud bo'lsa, belgilangan raqamlarda ishlatiladi.
  if(questionNumber>=19&&questionNumber<=25){
   const manual=await db(e,"quizbot_questions","source=eq.manual&select=*&order=content_hash.asc&offset="+(questionNumber-19)+"&limit=1");
   if(manual.length)return manual[0];
  }
- const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
- const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"],cat=cats[Math.floor(Math.random()*cats.length)];
- const prompt=`Sen professional o'zbek tilidagi intellektual Telegram shou muharririsan. Kategoriya: ${cat}. Oldingi savollarni takrorlama va ularga mazmunan juda o'xshash savol tuzma: ${JSON.stringify(old.map(x=>x.question_text))}. Kanal uchun odamni qiziqtiradigan, o'ylantiradigan, ravon va tabiiy savol yoz. Savol matnining boshiga mavzuga mos 1-2 emoji qo'sh (masalan 🧠 🤔 🌍 🔬 🏛️ 🚀 🐾 💡), emojilarni har safar almashtir; ortiqcha emoji bilan to'ldirma. Kirish jumlasini ham turlicha qil: "✨ BILIMDONLAR, DIQQAT!", "🤔 BUNI TOPA OLASIZMI?", "🔎 QIZIQARLI SAVOL!", "⚡ TEZKOR BELLASHUV!" kabi; bir xil sarlavhani ketma-ket ishlatma. Savol aniq, fakt jihatdan ishonchli va faqat bitta shubhasiz to'g'ri javobga ega bo'lsin. 4 ta qisqa, bir-biridan farqli variant tuz; noto'g'ri variantlar ham ishonarli bo'lsin. Siyosiy targ'ibot, noaniq afsona, tekshirib bo'lmaydigan statistika va ikki xil talqin qilinadigan savollardan qoch. question maydonida Telegram postiga tayyor, 2-5 qatordan iborat chiroyli matn bo'lsin; javobni oshkor qilma. explanation maydonida to'g'ri javob sababini 2-3 qiziqarli gapda tushuntir. Faqat JSON qaytar: {"question":"...","options":["...","...","...","..."],"answer":"to'g'ri variant matni","explanation":"...","category":"...","difficulty":"easy|medium|hard"}`;
- let raw="",geminiError=null,cloudflareError=null;
- // Gemini — asosiy savol generatori. Cloudflare AI faqat zaxira sifatida ishlaydi.
- if(e.GEMINI_API_KEY){
-  try{
-   const model=e.GEMINI_MODEL||"gemini-3.8-flash";
-   const u="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
-   const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",maxOutputTokens:2048,thinkingConfig:{thinkingLevel:"LOW"}}})});
-   const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,500));
-   raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
-   if(!raw)throw Error("Gemini javobi bo'sh; finishReason="+(j.candidates?.[0]?.finishReason||"noma'lum"));
-  }catch(err){
-   geminiError=err;console.error("Gemini savol yaratishda xato; Cloudflare AI zaxirasi ishga tushadi:",String(err&&err.message||err));
-  }
+ // Bitta AI so'rovida 5 ta savol olinadi; keyingi savollar shu zaxiradan olinadi.
+ const pool=async()=>await db(e,"quizbot_questions","source=eq.gemini_batch&status=eq.approved&select=*&order=created_at.asc&limit=30");
+ const scheduled=await db(e,"quizbot_schedule","select=question_id&limit=2000");
+ const used=new Set(scheduled.map(x=>String(x.question_id)));
+ let available=(await pool()).filter(x=>!used.has(String(x.id)));
+ if(!available.length){
+  await generateQuestionBatch(e,5);
+  available=(await pool()).filter(x=>!used.has(String(x.id)));
  }
- if(!raw&&e.AI?.run){
-  try{
-   const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Faqat so'ralgan JSON obyektini qaytar."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:1200,temperature:.8});
-   raw=modelText(out);if(!raw)throw Error("Cloudflare AI javobi bo'sh");
-  }catch(err){
-   cloudflareError=err;console.error("Cloudflare AI zaxira generatori ham ishlamadi:",String(err&&err.message||err));
-  }
- }
- if(!raw)throw Error("Savol yaratilmadi. Gemini: "+String(geminiError?.message||"kalit yo'q")+"; Cloudflare AI: "+String(cloudflareError?.message||"mavjud emas"));
- let q=parseQuestion(raw);
- // AI ba'zan javobni variant harfi yoki raqami, ba'zan esa to'liq matn ko'rinishida qaytaradi.
- if(!Array.isArray(q.options)&&q.options&&typeof q.options==="object")q.options=["A","B","C","D"].map(k=>q.options[k]??q.options[k.toLowerCase()]);
- if(Array.isArray(q.options))q.options=q.options.map(x=>typeof x==="string"?x:(x?.text??x?.value??x?.option??""));
- const answerRaw=q.answer??q.correct_answer??q.correct??q.correctAnswer??q.correct_option??q.correctOption??"";
- if(typeof q.question!=="string"||!q.question.trim()||q.question.length>3000||!Array.isArray(q.options)||q.options.length!==4||q.options.some(x=>typeof x!=="string"||!x.trim()||x.length>55)||new Set(q.options.map(x=>norm(x))).size!==4){
-  console.error("AI question validation failed; raw:",String(raw).slice(0,1400));
-  throw Error("AI savol formati xato: savol yoki 4 ta variant noto'g'ri");
- }
- const answerKey=String(answerRaw).trim(),letter=answerKey.match(/^([ABCD])(?:[.)\s:-]|$)/i),number=answerKey.match(/^([1-4])(?:[.)\s:-]|$)/);
- let answerIndex=Number.isInteger(q.answer_index)?q.answer_index:Number.isInteger(q.correct_option_index)?q.correct_option_index:-1;
- if(answerIndex<0||answerIndex>3)answerIndex=letter?"ABCD".indexOf(letter[1].toUpperCase()):number?Number(number[1])-1:-1;
- if(answerIndex<0)answerIndex=q.options.findIndex(x=>norm(x)===norm(answerKey));
- if(answerIndex<0&&answerRaw&&typeof answerRaw==="object")answerIndex=q.options.findIndex(x=>norm(x)===norm(answerRaw.text??answerRaw.value??answerRaw.option??""));
- if(answerIndex<0||answerIndex>3){
-  console.error("AI answer mapping failed; answer:",JSON.stringify(answerRaw),"options:",JSON.stringify(q.options),"raw:",String(raw).slice(0,1400));
-  throw Error("AI savol formati xato: to'g'ri javob 4 variantdan topilmadi");
- }
- q.question=q.question.trim();q.options=q.options.map(x=>x.trim());q.answer=q.options[answerIndex];
- const n=norm(q.question),words=new Set(n.split(" "));
- for(const x of old){const w=new Set(norm(x.question_text).split(" ")),same=[...words].filter(v=>w.has(v)).length/Math.max(1,new Set([...words,...w]).size);if(same>.84)throw Error("O'xshash savol qayta tekshiriladi")}
- const digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(n)),hash=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,"0")).join("");
- const rows=await db(e,"quizbot_questions","on_conflict=content_hash",{method:"POST",headers:{"Prefer":"return=representation"},body:JSON.stringify({question_text:q.question,normalized_text:n,answer_text:q.answer,explanation:q.explanation||"",category:q.category||cat,difficulty:["easy","medium","hard"].includes(q.difficulty)?q.difficulty:"medium",options:q.options,content_hash:hash,status:"approved",source:"gemini"})});
- if(!rows.length)throw Error("Savol avval kiritilgan");return rows[0]
+ if(available.length)return available[0];
+ throw Error("Yangi savol zaxirasi topilmadi; AI paketi savollarni saqlay olmadi");
 }
 async function settings(e){return (await db(e,"quizbot_settings","id=eq.1&select=*"))[0]}
 async function cron(e,now){
