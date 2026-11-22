@@ -36,6 +36,8 @@ function parseQuestion(raw){
 }
 const categoryEmoji={"Mantiq":"🧩","Matematika":"🔢","Tabiiy fanlar":"🔬","Tarix":"🏛️","Geografiya":"🌍","Til va adabiyot":"📚","Texnologiya":"💻","Umumiy bilim":"🌟"};
 async function question(e){
+ const manual=await db(e,"quizbot_questions","source=eq.manual&status=eq.approved&select=*&order=created_at.asc&limit=1");
+ if(manual.length)return manual[0];
  const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
  const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"],cat=cats[Math.floor(Math.random()*cats.length)];
  const prompt=`Sen professional o'zbek tilidagi intellektual Telegram shou muharririsan. Kategoriya: ${cat}. Oldingi savollarni takrorlama va ularga mazmunan juda o'xshash savol tuzma: ${JSON.stringify(old.map(x=>x.question_text))}. Kanal uchun odamni qiziqtiradigan, o'ylantiradigan, ravon va tabiiy savol yoz. Savol matnining boshiga mavzuga mos 1-2 emoji qo'sh (masalan 🧠 🤔 🌍 🔬 🏛️ 🚀 🐾 💡), emojilarni har safar almashtir; ortiqcha emoji bilan to'ldirma. Kirish jumlasini ham turlicha qil: "✨ BILIMDONLAR, DIQQAT!", "🤔 BUNI TOPA OLASIZMI?", "🔎 QIZIQARLI SAVOL!", "⚡ TEZKOR BELLASHUV!" kabi; bir xil sarlavhani ketma-ket ishlatma. Savol aniq, fakt jihatdan ishonchli va faqat bitta shubhasiz to'g'ri javobga ega bo'lsin. 4 ta qisqa, bir-biridan farqli variant tuz; noto'g'ri variantlar ham ishonarli bo'lsin. Siyosiy targ'ibot, noaniq afsona, tekshirib bo'lmaydigan statistika va ikki xil talqin qilinadigan savollardan qoch. question maydonida Telegram postiga tayyor, 2-5 qatordan iborat chiroyli matn bo'lsin; javobni oshkor qilma. explanation maydonida to'g'ri javob sababini 2-3 qiziqarli gapda tushuntir. Faqat JSON qaytar: {"question":"...","options":["...","...","...","..."],"answer":"to'g'ri variant matni","explanation":"...","category":"...","difficulty":"easy|medium|hard"}`;
@@ -117,7 +119,7 @@ async function cron(e,now){
       throw pollErr;
      }
      await db(e,'quizbot_schedule','id=eq.'+scheduleId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,telegram_poll_id:msg.poll.id,post_type:'poll'})});
-     if(i%3===1){
+     if(i%3===0){
       try{const bytes=await quizImage(e,q);if(bytes?.length)await tgPhoto(e,c.channel_username,'🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\\n\\n🖼️ Savolga oid rasm',null,bytes);}
       catch(imageErr){console.error('Quiz image failed; poll already posted:',String(imageErr&&imageErr.message||imageErr));}
      }
