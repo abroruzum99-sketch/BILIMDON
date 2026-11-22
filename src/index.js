@@ -121,7 +121,6 @@ async function cron(e,now){
   if(sess&&sess.status==='active'){
    const prior=await db(e,'quizbot_schedule','session_id=eq.'+sess.id+'&select=id,question_id,question_number,status,telegram_message_id');
    const postedCount=prior.filter(x=>x.status==='posted').length;if(postedCount<questionCount)try{let postedThisRun=0;
-    if(!prior.length)await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n⚡ Har bir javobdan so‘ng natija darhol ko‘rsatiladi.'});
     for(let i=1;i<=questionCount;i++){
      if(postedThisRun>=5)break;
      const existing=prior.find(x=>Number(x.question_number)===i);
@@ -133,6 +132,9 @@ async function cron(e,now){
       const scheduledAt=new Date(start.getTime()+(i-1)*1000).toISOString();
       const rows=await db(e,'quizbot_schedule','',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({session_id:sess.id,question_id:q.id,question_number:i,scheduled_at:scheduledAt,status:'queued'})});
       scheduleId=rows[0].id;
+      // E'lonni faqat birinchi savol jadvalga yozilgandan keyin yuboramiz.
+      // AI xato bersa va schedule bo'sh qolsa, har daqiqada takroriy e'lon yuborilmaydi.
+      if(!prior.length&&i===1)await tg(e,'sendMessage',{chat_id:c.channel_username,text:'🏆 BILIMDON — '+sessionTitle+' BELLASHUVI\n\n🧠 '+questionCount+' ta yangi savol!\n⏰ Javob berish uchun 1 soat vaqt.\n⚡ Har bir javobdan so‘ng natija darhol ko‘rsatiladi.'});
      }
      const answerIndex=q.options.findIndex(x=>x===q.answer_text);
      if(answerIndex<0)throw Error('Poll uchun to‘g‘ri javob varianti topilmadi');
