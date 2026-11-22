@@ -47,7 +47,7 @@ async function settings(e){return (await db(e,"quizbot_settings","id=eq.1&select
 async function cron(e,now){
  const c=await settings(e);if(!c?.enabled)return;
  const local=new Date(now.getTime()+5*3600000),day=local.toISOString().slice(0,10),hh=local.getUTCHours(),mm=local.getUTCMinutes();
- const kind=mm===10&&hh===5?'noon':mm===0&&hh===18?'evening':null;
+ const kind=hh===5&&mm>=10?'noon':mm===0&&hh===18?'evening':null;
  if(kind){
   const start=new Date(day+'T'+(kind==='noon'?'05:10:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=25,sessionTitle=kind==='noon'?'KUNDUZGI':'KECHKI';
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
