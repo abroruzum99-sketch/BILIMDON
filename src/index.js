@@ -44,28 +44,29 @@ async function question(e,questionNumber=0){
  const old=await db(e,"quizbot_questions","select=question_text&order=created_at.desc&limit=80");
  const cats=["Mantiq","Matematika","Tabiiy fanlar","Tarix","Geografiya","Til va adabiyot","Texnologiya","Umumiy bilim"],cat=cats[Math.floor(Math.random()*cats.length)];
  const prompt=`Sen professional o'zbek tilidagi intellektual Telegram shou muharririsan. Kategoriya: ${cat}. Oldingi savollarni takrorlama va ularga mazmunan juda o'xshash savol tuzma: ${JSON.stringify(old.map(x=>x.question_text))}. Kanal uchun odamni qiziqtiradigan, o'ylantiradigan, ravon va tabiiy savol yoz. Savol matnining boshiga mavzuga mos 1-2 emoji qo'sh (masalan 🧠 🤔 🌍 🔬 🏛️ 🚀 🐾 💡), emojilarni har safar almashtir; ortiqcha emoji bilan to'ldirma. Kirish jumlasini ham turlicha qil: "✨ BILIMDONLAR, DIQQAT!", "🤔 BUNI TOPA OLASIZMI?", "🔎 QIZIQARLI SAVOL!", "⚡ TEZKOR BELLASHUV!" kabi; bir xil sarlavhani ketma-ket ishlatma. Savol aniq, fakt jihatdan ishonchli va faqat bitta shubhasiz to'g'ri javobga ega bo'lsin. 4 ta qisqa, bir-biridan farqli variant tuz; noto'g'ri variantlar ham ishonarli bo'lsin. Siyosiy targ'ibot, noaniq afsona, tekshirib bo'lmaydigan statistika va ikki xil talqin qilinadigan savollardan qoch. question maydonida Telegram postiga tayyor, 2-5 qatordan iborat chiroyli matn bo'lsin; javobni oshkor qilma. explanation maydonida to'g'ri javob sababini 2-3 qiziqarli gapda tushuntir. Faqat JSON qaytar: {"question":"...","options":["...","...","...","..."],"answer":"to'g'ri variant matni","explanation":"...","category":"...","difficulty":"easy|medium|hard"}`;
- let raw="",cloudflareError=null;
- if(e.AI?.run){
+ let raw="",geminiError=null,cloudflareError=null;
+ // Gemini — asosiy savol generatori. Cloudflare AI faqat zaxira sifatida ishlaydi.
+ if(e.GEMINI_API_KEY){
   try{
-   const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Faqat so'ralgan JSON obyektini qaytar."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:700,temperature:.8});
+   const model=e.GEMINI_MODEL||"gemini-3.8-flash";
+   const u="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
+   const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8,maxOutputTokens:2048,thinkingConfig:{thinkingLevel:"LOW"}}})});
+   const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,500));
+   raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
+   if(!raw)throw Error("Gemini javobi bo'sh; finishReason="+(j.candidates?.[0]?.finishReason||"noma'lum"));
+  }catch(err){
+   geminiError=err;console.error("Gemini savol yaratishda xato; Cloudflare AI zaxirasi ishga tushadi:",String(err&&err.message||err));
+  }
+ }
+ if(!raw&&e.AI?.run){
+  try{
+   const out=await e.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast",{messages:[{role:"system",content:"Sen professional o'zbek tilidagi intellektual viktorina muharririsan. Faqat so'ralgan JSON obyektini qaytar."},{role:"user",content:prompt}],response_format:{type:"json_object"},max_tokens:1200,temperature:.8});
    raw=modelText(out);if(!raw)throw Error("Cloudflare AI javobi bo'sh");
   }catch(err){
-   cloudflareError=err;
-   console.error("Cloudflare AI ishlamadi; Gemini zaxira rejimi tekshiriladi:",String(err&&err.message||err));
+   cloudflareError=err;console.error("Cloudflare AI zaxira generatori ham ishlamadi:",String(err&&err.message||err));
   }
  }
- if(!raw){
-  if(!e.GEMINI_API_KEY){
-   if(cloudflareError)throw cloudflareError;
-   throw Error("GEMINI_API_KEY sozlanmagan");
-  }
-  const model=e.GEMINI_MODEL||"gemini-3.8-flash";
-  const u="https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent";
-  const r=await fetch(u,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":e.GEMINI_API_KEY},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:"application/json",temperature:.8,maxOutputTokens:700}})});
-  const j=await r.json();if(!r.ok)throw Error("Gemini "+JSON.stringify(j).slice(0,350));
-  raw=j.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("")||"";
-  if(!raw)throw Error("Gemini javobi bo'sh");
- }
+ if(!raw)throw Error("Savol yaratilmadi. Gemini: "+String(geminiError?.message||"kalit yo'q")+"; Cloudflare AI: "+String(cloudflareError?.message||"mavjud emas"));
  let q=parseQuestion(raw);
  // AI ba'zan javobni variant harfi yoki raqami, ba'zan esa to'liq matn ko'rinishida qaytaradi.
  if(!Array.isArray(q.options)&&q.options&&typeof q.options==="object")q.options=["A","B","C","D"].map(k=>q.options[k]??q.options[k.toLowerCase()]);
@@ -95,7 +96,8 @@ async function settings(e){return (await db(e,"quizbot_settings","id=eq.1&select
 async function cron(e,now){
  const c=await settings(e);if(!c?.enabled)return;
  const local=new Date(now.getTime()+5*3600000),day=local.toISOString().slice(0,10),hh=local.getUTCHours(),mm=local.getUTCMinutes();
- const kind=hh===16&&mm>=39?'afternoon':mm===0&&hh===18?'evening':null;
+ // Har ikki sessiya boshlanishidan keyingi 20 daqiqa ichida qayta urinish mumkin.
+ const kind=hh===16&&mm>=39?'afternoon':hh===18&&mm<20?'evening':null;
  if(kind){
   const start=new Date(day+'T'+(kind==='afternoon'?'16:39:00':'18:00:00')+'+05:00'),end=new Date(start.getTime()+3600000),questionCount=25,sessionTitle=kind==='afternoon'?'KUNDUZGI':'KECHKI';
   let sess=(await db(e,'quizbot_sessions','on_conflict=session_date,session_type',{method:'POST',headers:{'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({session_date:day,session_type:kind,starts_at:start.toISOString(),ends_at:end.toISOString(),status:'active'})}))[0];
@@ -135,7 +137,7 @@ async function cron(e,now){
      }
      await db(e,'quizbot_schedule','id=eq.'+scheduleId,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',telegram_message_id:msg.message_id,telegram_poll_id:msg.poll.id,post_type:'poll'})});
      if(i%3===0){
-      try{const bytes=await quizImage(e,q);if(bytes?.length)await tgPhoto(e,c.channel_username,'🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\\n\\n🖼️ Savolga oid rasm',null,bytes);}
+      try{const bytes=await quizImage(e,q);if(bytes?.length)await tgPhoto(e,c.channel_username,'🌟 BILIMDON | '+sessionTitle+' — '+i+'/'+questionCount+'\n\n🖼️ Savolga oid rasm',null,bytes);}
       catch(imageErr){console.error('Quiz image failed; poll already posted:',String(imageErr&&imageErr.message||imageErr));}
      }
      await db(e,'quizbot_questions','id=eq.'+q.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'posted',posted_at:now.toISOString()})});
@@ -147,7 +149,7 @@ async function cron(e,now){
  const due=await db(e,'quizbot_sessions','status=eq.active&ends_at=lte.'+encodeURIComponent(now.toISOString())+'&select=*');
  for(const s of due){
   const sched=await db(e,'quizbot_schedule','session_id=eq.'+s.id+'&select=question_id,question_number,revealed_at');
-  const ids=sched.map(x=>x.question_id);if(!ids.length)continue;
+  const ids=sched.map(x=>x.question_id);if(!ids.length){await db(e,'quizbot_sessions','id=eq.'+s.id,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({status:'failed',finished_at:now.toISOString()})});console.error('Session yakunlandi, lekin savollar jadvali bo‘sh:',s.id);continue;}
   const ans=await db(e,'quizbot_answers','question_id=in.('+ids.join(',')+')&select=question_id,telegram_user_id,is_correct');
   const subs=await db(e,'quizbot_subscribers','select=telegram_user_id,username,first_name,score&order=score.desc&limit=1000');
   const participantIds=new Set(ans.map(x=>String(x.telegram_user_id)));const totals=subs.filter(u=>participantIds.has(String(u.telegram_user_id))).map(u=>{const mine=ans.filter(x=>String(x.telegram_user_id)===String(u.telegram_user_id));return {...u,correct:mine.filter(x=>x.is_correct).length,wrong:mine.filter(x=>!x.is_correct).length,unanswered:sched.length-mine.length};}).sort((x,y)=>y.correct-x.correct||x.wrong-y.wrong);
