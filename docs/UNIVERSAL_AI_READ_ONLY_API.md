@@ -15,6 +15,14 @@ All endpoints require:
 
 The API accepts GET only. It does not expose Telegram tokens, Supabase credentials, correct answers, private answer records, or write/publish/scheduling operations.
 
+## Supabase least-privilege design
+
+- The Worker uses the Supabase anon/publishable key only to call one dedicated RPC: `public.universal_ai_read`.
+- The RPC checks a high-entropy shared secret using a SHA-256 hash stored in the non-exposed `private` schema.
+- The RPC returns only four fixed resources and explicitly selected columns. It does not accept table names, SQL, filters, or arbitrary query input.
+- The existing `quizbot_*` tables retain their current RLS settings and grants; no public SELECT policy is added.
+- Never configure or ship the Supabase service-role key for this integration.
+
 ## Cloudflare Worker Previews
 
 - Worker Previews are branch-isolated previews under the existing `bilimdon-ai-quiz` Worker; they are not a second Telegram Worker.
@@ -23,19 +31,19 @@ The API accepts GET only. It does not expose Telegram tokens, Supabase credentia
 - Cron Triggers do not invoke a Preview's `scheduled()` handler. Do not add a Cron Trigger, Telegram webhook secrets, or production Telegram credentials to Previews.
 - Preview URLs are public by default. Restrict access with Cloudflare Access before sharing sensitive preview content.
 
-## Cloudflare Preview Base secrets
+## Cloudflare Preview Base secrets and variables
 
-Previews do not inherit Production secrets. In Worker → Settings → Variables and Secrets, select **Previews Base** and configure only the credentials needed for this read-only API:
+Previews do not inherit Production secrets. In Worker → Settings → Variables and Secrets, select **Previews Base** and configure:
 
-1. Add a new **Secret** named `UNIVERSAL_AI_API_SECRET` with at least 32 random characters. Do not reuse any existing credential.
-2. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only if you deliberately want this trusted Preview to read the existing Supabase project. The current wrapper uses these names for its GET/HEAD queries. A service-role key is highly privileged; do not add it to a Preview for code or contributors you do not fully trust.
-3. Do **not** add `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, Gemini credentials, or any other production Telegram runtime secrets to Previews Base.
+1. Secret `UNIVERSAL_AI_API_SECRET` — use the exact one-time integration secret supplied by the project owner; do not put it in Git.
+2. Variable `SUPABASE_URL` — the existing Supabase project URL.
+3. Variable `SUPABASE_ANON_KEY` — the Supabase anon/publishable key. Do not use the service-role key.
 
-Do not put any secret in Git or in `wrangler.toml`. Secrets must be entered in Cloudflare's dashboard. Base secrets apply to newly created Previews; set them before the first Preview deployment.
+Do **not** add `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, Gemini credentials, or any other production Telegram runtime secrets to Previews Base. Base secrets apply to newly created Previews; redeploy the Preview after setting them.
 
 ## UNIVERSAL_AI backend setup
 
-1. Add the same new integration secret to the UNIVERSAL_AI backend as `BILIMDON_API_SECRET`.
+1. Add the same `UNIVERSAL_AI_API_SECRET` value to the UNIVERSAL_AI backend as `BILIMDON_API_SECRET`.
 2. Set `BILIMDON_WORKER_URL` to the Preview URL while testing. Do not point the test integration at Production until Preview verification and owner approval.
 3. Set `BILIMDON_ADMIN_USER_IDS` to a comma-separated list of UNIVERSAL_AI account IDs permitted to view the dashboard.
 4. Test the four GET endpoints from the backend. Do not invoke `/setup`, `setWebhook`, or any Telegram send endpoint as part of this check.
@@ -49,9 +57,9 @@ The repository also contains a legacy GitHub Actions workflow with scheduled Pyt
 - Do not start the legacy Python polling bot or another webhook consumer with the same Telegram bot token.
 - Keep the existing one-minute Production Cron Trigger unchanged.
 - Do not change the current Telegram webhook URL.
-- Do not run migrations or modify existing Supabase tables for this read-only integration.
+- The migration adds only a private secret-hash table and a fixed read-only RPC; it does not modify existing quizbot tables or their RLS policies.
 - Merge/deploy to Production only after Preview verification and explicit owner approval.
 
 ## Local smoke check
 
-After configuring the Preview Base secrets and both application secret stores, a backend administrator can open the Bilimdon workspace in UNIVERSAL_AI. A missing integration secret or non-admin account must fail closed with an error; no data should be exposed.
+After configuring the Preview Base values and the UNIVERSAL_AI backend secret, a backend administrator can open the Bilimdon workspace in UNIVERSAL_AI. A missing integration secret or non-admin account must fail closed with an error; no data should be exposed.
