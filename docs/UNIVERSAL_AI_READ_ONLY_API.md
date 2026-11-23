@@ -15,15 +15,30 @@ All endpoints require:
 
 The API accepts GET only. It does not expose Telegram tokens, Supabase credentials, correct answers, private answer records, or write/publish/scheduling operations.
 
-## Cloudflare setup
+## Cloudflare Worker Previews
 
-1. Deploy the feature branch to a Cloudflare Preview environment first.
-2. In Worker → Settings → Variables and Secrets, add a **Secret** named `UNIVERSAL_AI_API_SECRET`.
-3. Generate a new random secret with at least 32 characters. Do not reuse `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, or the Supabase service-role key.
-4. Add the same value to the UNIVERSAL_AI backend environment as `BILIMDON_API_SECRET`.
-5. Set `BILIMDON_WORKER_URL=https://bilimdon-ai-quiz.abroruzum99.workers.dev` in the UNIVERSAL_AI backend environment.
-6. Set `BILIMDON_ADMIN_USER_IDS` to a comma-separated list of UNIVERSAL_AI account IDs permitted to view the dashboard.
-7. Test the four GET endpoints from the backend. Do not invoke `/setup`, `setWebhook`, or any Telegram send endpoint as part of this check.
+- Worker Previews are branch-isolated previews under the existing `bilimdon-ai-quiz` Worker; they are not a second Telegram Worker.
+- Production continues to use `npm run deploy` (`wrangler deploy`). Feature branches use `npm run deploy:preview` (`wrangler preview`).
+- Wrangler 4.135.0 or later is required. The `previews` block in `wrangler.toml` explicitly includes the Workers AI binding.
+- Cron Triggers do not invoke a Preview's `scheduled()` handler. Do not add a Cron Trigger, Telegram webhook secrets, or production Telegram credentials to Previews.
+- Preview URLs are public by default. Restrict access with Cloudflare Access before sharing sensitive preview content.
+
+## Cloudflare Preview Base secrets
+
+Previews do not inherit Production secrets. In Worker → Settings → Variables and Secrets, select **Previews Base** and configure only the credentials needed for this read-only API:
+
+1. Add a new **Secret** named `UNIVERSAL_AI_API_SECRET` with at least 32 random characters. Do not reuse any existing credential.
+2. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` only if you deliberately want this trusted Preview to read the existing Supabase project. The current wrapper uses these names for its GET/HEAD queries. A service-role key is highly privileged; do not add it to a Preview for code or contributors you do not fully trust.
+3. Do **not** add `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, Gemini credentials, or any other production Telegram runtime secrets to Previews Base.
+
+Do not put any secret in Git or in `wrangler.toml`. Secrets must be entered in Cloudflare's dashboard. Base secrets apply to newly created Previews; set them before the first Preview deployment.
+
+## UNIVERSAL_AI backend setup
+
+1. Add the same new integration secret to the UNIVERSAL_AI backend as `BILIMDON_API_SECRET`.
+2. Set `BILIMDON_WORKER_URL` to the Preview URL while testing. Do not point the test integration at Production until Preview verification and owner approval.
+3. Set `BILIMDON_ADMIN_USER_IDS` to a comma-separated list of UNIVERSAL_AI account IDs permitted to view the dashboard.
+4. Test the four GET endpoints from the backend. Do not invoke `/setup`, `setWebhook`, or any Telegram send endpoint as part of this check.
 
 ## Existing automation to review
 
@@ -32,11 +47,11 @@ The repository also contains a legacy GitHub Actions workflow with scheduled Pyt
 ## Deployment safety
 
 - Do not start the legacy Python polling bot or another webhook consumer with the same Telegram bot token.
-- Keep the existing one-minute Cron Trigger unchanged.
+- Keep the existing one-minute Production Cron Trigger unchanged.
 - Do not change the current Telegram webhook URL.
 - Do not run migrations or modify existing Supabase tables for this read-only integration.
 - Merge/deploy to Production only after Preview verification and explicit owner approval.
 
 ## Local smoke check
 
-After configuring both secret stores, a backend administrator can open the Bilimdon workspace in UNIVERSAL_AI. A missing secret or non-admin account must fail closed with an error; no data should be exposed.
+After configuring the Preview Base secrets and both application secret stores, a backend administrator can open the Bilimdon workspace in UNIVERSAL_AI. A missing integration secret or non-admin account must fail closed with an error; no data should be exposed.
