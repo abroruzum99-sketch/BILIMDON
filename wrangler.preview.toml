@@ -1,8 +1,0 @@
-# Isolated preview deployment. Never attach the production Telegram bot secrets
-# or production Cron Trigger to this Worker.
-name = "bilimdon-ai-quiz-preview"
-main = "src/universal-ai-wrapper.js"
-compatibility_date = "2026-11-20"
-
-[ai]
-binding = "AI"
