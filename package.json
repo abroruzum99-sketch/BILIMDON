@@ -4,9 +4,10 @@
   "version": "1.0.0",
   "scripts": {
     "deploy": "wrangler deploy",
+    "deploy:preview": "wrangler preview",
     "dev": "wrangler dev"
   },
   "devDependencies": {
-    "wrangler": "4.50.0"
+    "wrangler": "4.135.0"
   }
 }

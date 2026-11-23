@@ -1,9 +1,12 @@
 name = "bilimdon-ai-quiz"
-main = "src/index.js"
+main = "src/universal-ai-wrapper.js"
 compatibility_date = "2026-11-20"
 
 [triggers]
 crons = ["* * * * *"]
 
 [ai]
+binding = "AI"
+
+[previews.ai]
 binding = "AI"

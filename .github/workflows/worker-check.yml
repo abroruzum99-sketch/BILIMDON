@@ -1,0 +1,26 @@
+name: Cloudflare Worker validation
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "wrangler.toml"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/worker-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - name: Bundle Worker without deploying
+        run: npx wrangler deploy --dry-run
